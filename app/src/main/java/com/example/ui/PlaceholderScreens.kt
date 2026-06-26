@@ -18,6 +18,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.RoyalBlue
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.*
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BaseScreen(title: String, onBackClick: () -> Unit, fabAction: (() -> Unit)? = null, content: @Composable (PaddingValues) -> Unit) {
@@ -46,71 +49,265 @@ fun BaseScreen(title: String, onBackClick: () -> Unit, fabAction: (() -> Unit)? 
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReceptionScreen(onBackClick: () -> Unit) {
-    BaseScreen(title = "Reception", onBackClick = onBackClick, fabAction = {}) { padding ->
+fun ReceptionScreen(hotelViewModel: HotelViewModel, onBackClick: () -> Unit) {
+    val rooms by hotelViewModel.rooms.collectAsStateWithLifecycle()
+    var showDialog by remember { mutableStateOf(false) }
+    var newRoomNumber by remember { mutableStateOf("") }
+    var selectedRoom by remember { mutableStateOf<com.example.data.RoomStatus?>(null) }
+    var guestName by remember { mutableStateOf("") }
+    var checkInDialog by remember { mutableStateOf(false) }
+
+    BaseScreen(title = "Reception", onBackClick = onBackClick, fabAction = { showDialog = true }) { padding ->
         LazyColumn(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
-            items(listOf("John Doe - Room 101", "Jane Smith - Room 102", "Alice Brown - Room 105")) { guest ->
-                Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            items(rooms) { room ->
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    onClick = {
+                        if (room.guestName.isNullOrEmpty()) {
+                            selectedRoom = room
+                            guestName = ""
+                            checkInDialog = true
+                        } else {
+                            hotelViewModel.checkOutGuest(room)
+                        }
+                    }
+                ) {
                     ListItem(
-                        headlineContent = { Text(guest, fontWeight = FontWeight.Bold) },
-                        supportingContent = { Text("Checked In") },
-                        leadingContent = { Icon(Icons.Default.Person, contentDescription = null, tint = RoyalBlue) }
+                        headlineContent = { Text("Room ${room.roomNumber}", fontWeight = FontWeight.Bold) },
+                        supportingContent = { Text(if (room.guestName.isNullOrEmpty()) "Available" else "Occupied by ${room.guestName}") },
+                        leadingContent = { Icon(Icons.Default.Person, contentDescription = null, tint = if (room.guestName.isNullOrEmpty()) Color.Gray else RoyalBlue) },
+                        trailingContent = {
+                            if (!room.guestName.isNullOrEmpty()) {
+                                Button(onClick = { hotelViewModel.checkOutGuest(room) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))) {
+                                    Text("Check Out")
+                                }
+                            } else {
+                                Button(onClick = {
+                                    selectedRoom = room
+                                    guestName = ""
+                                    checkInDialog = true
+                                }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))) {
+                                    Text("Check In")
+                                }
+                            }
+                        }
                     )
                 }
             }
+            if (rooms.isEmpty()) {
+                item { Text("No rooms available. Tap + to add rooms.") }
+            }
         }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Add Room") },
+            text = {
+                OutlinedTextField(
+                    value = newRoomNumber,
+                    onValueChange = { newRoomNumber = it },
+                    label = { Text("Room Number") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (newRoomNumber.isNotBlank()) {
+                        hotelViewModel.addRoom(newRoomNumber)
+                        newRoomNumber = ""
+                        showDialog = false
+                    }
+                }) { Text("Add") }
+            },
+            dismissButton = { TextButton(onClick = { showDialog = false }) { Text("Cancel") } }
+        )
+    }
+
+    if (checkInDialog && selectedRoom != null) {
+         AlertDialog(
+            onDismissRequest = { checkInDialog = false },
+            title = { Text("Check In - Room ${selectedRoom?.roomNumber}") },
+            text = {
+                OutlinedTextField(
+                    value = guestName,
+                    onValueChange = { guestName = it },
+                    label = { Text("Guest Name") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (guestName.isNotBlank()) {
+                        hotelViewModel.checkInGuest(selectedRoom!!, guestName)
+                        checkInDialog = false
+                    }
+                }) { Text("Check In") }
+            },
+            dismissButton = { TextButton(onClick = { checkInDialog = false }) { Text("Cancel") } }
+        )
     }
 }
 
 @Composable
-fun CleaningScreen(onBackClick: () -> Unit) {
+fun CleaningScreen(hotelViewModel: HotelViewModel, onBackClick: () -> Unit) {
+    val rooms by hotelViewModel.rooms.collectAsStateWithLifecycle()
+
     BaseScreen(title = "Cleaning", onBackClick = onBackClick) { padding ->
         LazyColumn(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
-            items(listOf(Pair("Room 101", true), Pair("Room 102", false), Pair("Room 103", false))) { room ->
+            items(rooms) { room ->
                 Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                     ListItem(
-                        headlineContent = { Text(room.first, fontWeight = FontWeight.Bold) },
-                        supportingContent = { Text(if (room.second) "Cleaned" else "Needs Cleaning") },
-                        leadingContent = { Icon(Icons.Default.CleaningServices, contentDescription = null, tint = if (room.second) Color(0xFF10B981) else Color(0xFFEF4444)) }
+                        headlineContent = { Text("Room ${room.roomNumber}", fontWeight = FontWeight.Bold) },
+                        supportingContent = { Text(if (room.isCleaned) "Cleaned" else "Needs Cleaning") },
+                        leadingContent = { Icon(Icons.Default.CleaningServices, contentDescription = null, tint = if (room.isCleaned) Color(0xFF10B981) else Color(0xFFEF4444)) },
+                        trailingContent = {
+                            Switch(
+                                checked = room.isCleaned,
+                                onCheckedChange = { isCleaned -> hotelViewModel.updateRoomStatus(room, isCleaned) }
+                            )
+                        }
                     )
                 }
+            }
+             if (rooms.isEmpty()) {
+                item { Text("No rooms exist yet. Add rooms from Reception.") }
             }
         }
     }
 }
 
 @Composable
-fun RepairsScreen(onBackClick: () -> Unit) {
-    BaseScreen(title = "Repairs & Maintenance", onBackClick = onBackClick, fabAction = {}) { padding ->
+fun RepairsScreen(hotelViewModel: HotelViewModel, onBackClick: () -> Unit) {
+    val repairs by hotelViewModel.repairs.collectAsStateWithLifecycle()
+    var showDialog by remember { mutableStateOf(false) }
+    var issueDesc by remember { mutableStateOf("") }
+    var location by remember { mutableStateOf("") }
+
+    BaseScreen(title = "Repairs & Maintenance", onBackClick = onBackClick, fabAction = { showDialog = true }) { padding ->
         LazyColumn(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
-            items(listOf("AC not working - Room 201", "Leaking Tap - Room 105")) { issue ->
+            items(repairs) { repair ->
                 Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                     ListItem(
-                        headlineContent = { Text(issue, fontWeight = FontWeight.Bold) },
-                        supportingContent = { Text("Pending") },
-                        leadingContent = { Icon(Icons.Default.Build, contentDescription = null, tint = Color(0xFFF59E0B)) }
+                        headlineContent = { Text(repair.description, fontWeight = FontWeight.Bold) },
+                        supportingContent = { Text("${repair.location} - " + if (repair.isFixed) "Fixed" else "Pending") },
+                        leadingContent = { Icon(Icons.Default.Build, contentDescription = null, tint = if (repair.isFixed) Color(0xFF10B981) else Color(0xFFF59E0B)) },
+                        trailingContent = {
+                            Checkbox(checked = repair.isFixed, onCheckedChange = { hotelViewModel.toggleRepairStatus(repair) })
+                        }
                     )
                 }
             }
+             if (repairs.isEmpty()) {
+                item { Text("No repair requests.") }
+            }
         }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("New Repair Request") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = location,
+                        onValueChange = { location = it },
+                        label = { Text("Location (e.g. Room 101)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = issueDesc,
+                        onValueChange = { issueDesc = it },
+                        label = { Text("Issue Description") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (location.isNotBlank() && issueDesc.isNotBlank()) {
+                        hotelViewModel.addRepair(issueDesc, location)
+                        location = ""
+                        issueDesc = ""
+                        showDialog = false
+                    }
+                }) { Text("Submit") }
+            },
+            dismissButton = { TextButton(onClick = { showDialog = false }) { Text("Cancel") } }
+        )
     }
 }
 
 @Composable
-fun StaffScreen(onBackClick: () -> Unit) {
-    BaseScreen(title = "Staff Management", onBackClick = onBackClick, fabAction = {}) { padding ->
+fun StaffScreen(hotelViewModel: HotelViewModel, onBackClick: () -> Unit) {
+    val staff by hotelViewModel.staff.collectAsStateWithLifecycle()
+    var showDialog by remember { mutableStateOf(false) }
+    var staffName by remember { mutableStateOf("") }
+    var staffRole by remember { mutableStateOf("") }
+
+    BaseScreen(title = "Staff Management", onBackClick = onBackClick, fabAction = { showDialog = true }) { padding ->
         LazyColumn(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
-            items(listOf("Michael - Chef", "Sarah - Housekeeping", "David - Reception")) { staff ->
+            items(staff) { member ->
                 Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                     ListItem(
-                        headlineContent = { Text(staff, fontWeight = FontWeight.Bold) },
-                        supportingContent = { Text("On Duty") },
-                        leadingContent = { Icon(Icons.Default.Badge, contentDescription = null, tint = RoyalBlue) }
+                        headlineContent = { Text(member.name, fontWeight = FontWeight.Bold) },
+                        supportingContent = { Text("${member.role} - " + if (member.isOnDuty) "On Duty" else "Off Duty") },
+                        leadingContent = { Icon(Icons.Default.Badge, contentDescription = null, tint = RoyalBlue) },
+                        trailingContent = {
+                            Switch(checked = member.isOnDuty, onCheckedChange = { hotelViewModel.toggleStaffDuty(member) })
+                        }
                     )
                 }
             }
+             if (staff.isEmpty()) {
+                item { Text("No staff members. Tap + to add.") }
+            }
         }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Add Staff Member") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = staffName,
+                        onValueChange = { staffName = it },
+                        label = { Text("Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = staffRole,
+                        onValueChange = { staffRole = it },
+                        label = { Text("Role (e.g. Receptionist)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (staffName.isNotBlank() && staffRole.isNotBlank()) {
+                        hotelViewModel.addStaff(staffName, staffRole)
+                        staffName = ""
+                        staffRole = ""
+                        showDialog = false
+                    }
+                }) { Text("Add") }
+            },
+            dismissButton = { TextButton(onClick = { showDialog = false }) { Text("Cancel") } }
+        )
     }
 }
 

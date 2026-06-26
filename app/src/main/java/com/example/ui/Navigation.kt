@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.wastage.WastageViewModel
+import com.example.ui.HotelViewModel
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -27,7 +28,8 @@ object AddWastageRoute
 @Composable
 fun AppNavigation(
     modifier: Modifier = Modifier,
-    wastageViewModel: WastageViewModel
+    wastageViewModel: WastageViewModel,
+    hotelViewModel: HotelViewModel
 ) {
     val navController = rememberNavController()
 
@@ -64,16 +66,16 @@ fun AppNavigation(
             )
         }
         composable<ReceptionRoute> {
-            ReceptionScreen(onBackClick = { navController.popBackStack() })
+            ReceptionScreen(hotelViewModel = hotelViewModel, onBackClick = { navController.popBackStack() })
         }
         composable<CleaningRoute> {
-            CleaningScreen(onBackClick = { navController.popBackStack() })
+            CleaningScreen(hotelViewModel = hotelViewModel, onBackClick = { navController.popBackStack() })
         }
         composable<RepairsRoute> {
-            RepairsScreen(onBackClick = { navController.popBackStack() })
+            RepairsScreen(hotelViewModel = hotelViewModel, onBackClick = { navController.popBackStack() })
         }
         composable<StaffRoute> {
-            StaffScreen(onBackClick = { navController.popBackStack() })
+            StaffScreen(hotelViewModel = hotelViewModel, onBackClick = { navController.popBackStack() })
         }
         composable<ReportsRoute> {
             ReportsScreen(onBackClick = { navController.popBackStack() })

@@ -5,9 +5,15 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [WasteRecord::class], version = 1, exportSchema = false)
+import com.example.data.HotelDao
+import com.example.data.RepairRequest
+import com.example.data.RoomStatus
+import com.example.data.StaffMember
+
+@Database(entities = [WasteRecord::class, RoomStatus::class, RepairRequest::class, StaffMember::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun wasteDao(): WasteDao
+    abstract fun hotelDao(): HotelDao
 
     companion object {
         @Volatile
@@ -19,7 +25,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "auracore_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }

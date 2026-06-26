@@ -16,13 +16,18 @@ import com.example.wastage.WastageViewModel
 import com.example.wastage.WastageViewModelFactory
 import com.example.wastage.WasteRepository
 
+import com.example.ui.HotelViewModel
+import com.example.ui.HotelViewModelFactory
+import com.example.data.HotelRepository
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         
         val database = AppDatabase.getDatabase(this)
-        val repository = WasteRepository(database.wasteDao())
+        val wasteRepository = WasteRepository(database.wasteDao())
+        val hotelRepository = HotelRepository(database.hotelDao())
         
         setContent {
             MyApplicationTheme {
@@ -31,9 +36,12 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val wastageViewModel: WastageViewModel = viewModel(
-                        factory = WastageViewModelFactory(repository)
+                        factory = WastageViewModelFactory(wasteRepository)
                     )
-                    AppNavigation(wastageViewModel = wastageViewModel)
+                    val hotelViewModel: HotelViewModel = viewModel(
+                        factory = HotelViewModelFactory(hotelRepository)
+                    )
+                    AppNavigation(wastageViewModel = wastageViewModel, hotelViewModel = hotelViewModel)
                 }
             }
         }
