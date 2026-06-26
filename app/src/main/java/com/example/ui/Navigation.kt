@@ -17,6 +17,13 @@ object KitchenWastageRoute
 @Serializable
 object AddWastageRoute
 
+@Serializable object ReceptionRoute
+@Serializable object CleaningRoute
+@Serializable object RepairsRoute
+@Serializable object StaffRoute
+@Serializable object ReportsRoute
+@Serializable object SetupRoute
+
 @Composable
 fun AppNavigation(
     modifier: Modifier = Modifier,
@@ -33,7 +40,13 @@ fun AppNavigation(
             DashboardScreen(
                 onNavigateToKitchenWastage = {
                     navController.navigate(KitchenWastageRoute)
-                }
+                },
+                onNavigateToReception = { navController.navigate(ReceptionRoute) },
+                onNavigateToCleaning = { navController.navigate(CleaningRoute) },
+                onNavigateToRepairs = { navController.navigate(RepairsRoute) },
+                onNavigateToStaff = { navController.navigate(StaffRoute) },
+                onNavigateToReports = { navController.navigate(ReportsRoute) },
+                onNavigateToSetup = { navController.navigate(SetupRoute) }
             )
         }
         composable<KitchenWastageRoute> {
@@ -50,5 +63,24 @@ fun AppNavigation(
                 onSaveSuccess = { navController.popBackStack() }
             )
         }
+        composable<ReceptionRoute> {
+            ReceptionScreen(onBackClick = { navController.popBackStack() })
+        }
+        composable<CleaningRoute> {
+            CleaningScreen(onBackClick = { navController.popBackStack() })
+        }
+        composable<RepairsRoute> {
+            RepairsScreen(onBackClick = { navController.popBackStack() })
+        }
+        composable<StaffRoute> {
+            StaffScreen(onBackClick = { navController.popBackStack() })
+        }
+        composable<ReportsRoute> {
+            ReportsScreen(onBackClick = { navController.popBackStack() })
+        }
+        composable<SetupRoute> {
+            SetupScreen(onBackClick = { navController.popBackStack() })
+        }
     }
 }
+

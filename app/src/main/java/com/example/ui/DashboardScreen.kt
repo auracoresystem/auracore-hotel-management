@@ -46,7 +46,13 @@ import com.example.ui.theme.RoyalBlue
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    onNavigateToKitchenWastage: () -> Unit
+    onNavigateToKitchenWastage: () -> Unit,
+    onNavigateToReception: () -> Unit,
+    onNavigateToCleaning: () -> Unit,
+    onNavigateToRepairs: () -> Unit,
+    onNavigateToStaff: () -> Unit,
+    onNavigateToReports: () -> Unit,
+    onNavigateToSetup: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -119,8 +125,8 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    BottomNavItem(Icons.Default.Dashboard, "Hub", isSelected = true)
-                    BottomNavItem(Icons.Default.Groups, "Staff", isSelected = false)
+                    BottomNavItem(Icons.Default.Dashboard, "Hub", isSelected = true, onClick = {})
+                    BottomNavItem(Icons.Default.Groups, "Staff", isSelected = false, onClick = onNavigateToStaff)
                     
                     // Center Add Button
                     Box(
@@ -135,8 +141,8 @@ fun DashboardScreen(
                         Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.White, modifier = Modifier.size(32.dp))
                     }
                     
-                    BottomNavItem(Icons.Default.Analytics, "Reports", isSelected = false)
-                    BottomNavItem(Icons.Default.Settings, "Setup", isSelected = false)
+                    BottomNavItem(Icons.Default.Analytics, "Reports", isSelected = false, onClick = onNavigateToReports)
+                    BottomNavItem(Icons.Default.Settings, "Setup", isSelected = false, onClick = onNavigateToSetup)
                 }
             }
         },
@@ -206,7 +212,7 @@ fun DashboardScreen(
                         bgColor = Color(0xFFE0E7FF),
                         iconBgColor = RoyalBlue,
                         textColor = RoyalBlue,
-                        onClick = {}
+                        onClick = onNavigateToReception
                     )
                     ModuleCardItem(
                         modifier = Modifier.weight(1f),
@@ -215,7 +221,7 @@ fun DashboardScreen(
                         bgColor = Color(0xFFFEF3C7),
                         iconBgColor = Gold,
                         textColor = Color(0xFF92400E),
-                        onClick = {}
+                        onClick = onNavigateToCleaning
                     )
                     ModuleCardItem(
                         modifier = Modifier.weight(1f),
@@ -233,7 +239,7 @@ fun DashboardScreen(
                         bgColor = Color(0xFFFFEDD5),
                         iconBgColor = Color(0xFFEA580C), // orange-600
                         textColor = Color(0xFF9A3412), // orange-800
-                        onClick = {}
+                        onClick = onNavigateToRepairs
                     )
                 }
             }
@@ -312,9 +318,13 @@ fun DashboardScreen(
 }
 
 @Composable
-fun BottomNavItem(icon: ImageVector, label: String, isSelected: Boolean) {
+fun BottomNavItem(icon: ImageVector, label: String, isSelected: Boolean, onClick: () -> Unit) {
     val color = if (isSelected) RoyalBlue else Color(0xFF94A3B8) // slate-400
     Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(icon, contentDescription = label, tint = color)
