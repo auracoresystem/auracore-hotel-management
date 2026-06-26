@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "1234567890",
-    "project_id": "dummy-project-id",
-    "storage_bucket": "dummy-project-id.appspot.com"
+    "project_number": "873136515012",
+    "project_id": "auracore-hotel",
+    "storage_bucket": "auracore-hotel.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1234567890:android:abcdef123456",
+        "mobilesdk_app_id": "1:873136515012:android:cd8ed54687eee2f28ba691",
         "android_client_info": {
           "package_name": "com.aistudio.auracore.xplqzc"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "dummy-api-key"
+          "current_key": "AIzaSyCyIL6Acw4KtQIlpGNGI4YaRYI-mkuq3h0"
         }
       ],
       "services": {
