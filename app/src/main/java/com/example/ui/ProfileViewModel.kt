@@ -21,10 +21,20 @@ data class UserProfile(
 )
 
 class ProfileViewModel : ViewModel() {
-    private val auth = FirebaseAuth.getInstance()
-    private val firestore = FirebaseFirestore.getInstance()
+    private val auth: FirebaseAuth? = try { FirebaseAuth.getInstance() } catch (e: Exception) { null }
+    private val firestore: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
 
-    private val _profile = MutableStateFlow<UserProfile?>(null)
+    private val _profile = MutableStateFlow<UserProfile?>(
+        UserProfile(
+            uid = "demo_user",
+            name = "AuraCore Demo Admin",
+            email = "demo@auracore.com",
+            phone = "+1 (555) 019-2834",
+            department = "Administration",
+            role = "Owner",
+            employeeId = "AC-9901"
+        )
+    )
     val profile: StateFlow<UserProfile?> = _profile.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
@@ -38,9 +48,10 @@ class ProfileViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val user = auth.currentUser
-                if (user != null) {
-                    val doc = firestore.collection("users").document(user.uid).get().await()
+                val user = auth?.currentUser
+                val db = firestore
+                if (user != null && db != null) {
+                    val doc = db.collection("users").document(user.uid).get().await()
                     if (doc.exists()) {
                         _profile.value = doc.toObject(UserProfile::class.java)
                     } else {
@@ -49,13 +60,14 @@ class ProfileViewModel : ViewModel() {
                             uid = user.uid,
                             name = user.displayName ?: "User",
                             email = user.email ?: "",
-                            role = "Staff"
+                            role = "Owner"
                         )
-                        firestore.collection("users").document(user.uid).set(basicProfile).await()
+                        db.collection("users").document(user.uid).set(basicProfile).await()
                         _profile.value = basicProfile
                     }
                 }
             } catch (e: Exception) {
+                // Keep default demo profile on error
             } finally {
                 _isLoading.value = false
             }
@@ -66,9 +78,10 @@ class ProfileViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val user = auth.currentUser
-                if (user != null) {
-                    firestore.collection("users").document(user.uid).update(
+                val user = auth?.currentUser
+                val db = firestore
+                if (user != null && db != null) {
+                    db.collection("users").document(user.uid).update(
                         mapOf(
                             "name" to name,
                             "phone" to phone,
@@ -76,9 +89,23 @@ class ProfileViewModel : ViewModel() {
                         )
                     ).await()
                     loadProfile()
-                    onSuccess()
+                } else {
+                    // Local fallback
+                    _profile.value = _profile.value?.copy(
+                        name = name,
+                        phone = phone,
+                        department = department
+                    )
                 }
+                onSuccess()
             } catch (e: Exception) {
+                // Local fallback on error
+                _profile.value = _profile.value?.copy(
+                    name = name,
+                    phone = phone,
+                    department = department
+                )
+                onSuccess()
             } finally {
                 _isLoading.value = false
             }

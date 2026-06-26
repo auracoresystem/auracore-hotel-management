@@ -144,6 +144,65 @@ fun LoginScreen(
                         Text("Login", fontSize = 16.sp)
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = Color.LightGray)
+                    Text(
+                        text = " OR BYPASS FOR DEMO ",
+                        fontSize = 11.sp,
+                        color = Color.Gray,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = Color.LightGray)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "No login/signup required. Click below to try any role:",
+                    fontSize = 13.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.loginAsDemo("Owner") },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)), // Red
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Text("Owner", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Button(
+                        onClick = { viewModel.loginAsDemo("General Manager") },
+                        modifier = Modifier.weight(1.3f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)), // Blue
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Text("Gen Manager", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Button(
+                        onClick = { viewModel.loginAsDemo("Department Head") },
+                        modifier = Modifier.weight(1.2f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)), // Green
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Text("Dept Head", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
             }
         }
     }
