@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -29,8 +30,11 @@ fun LoginScreen(
     onNavigateToDashboard: (String) -> Unit
 ) {
     val authState by viewModel.authState.collectAsStateWithLifecycle()
+    var isLoginMode by remember { mutableStateOf(true) }
+    var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("owner@auracore.com") }
     var password by remember { mutableStateOf("admin123") }
+    var selectedRole by remember { mutableStateOf("Owner") }
     var rememberMe by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
 
@@ -71,7 +75,41 @@ fun LoginScreen(
                     fontSize = 16.sp,
                     color = Color.Gray
                 )
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Modern Tab-like Selector for Login vs Sign Up
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    TextButton(
+                        onClick = { isLoginMode = true },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = if (isLoginMode) RoyalBlue else Color.Gray
+                        )
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Login", fontSize = 16.sp, fontWeight = if (isLoginMode) FontWeight.Bold else FontWeight.Normal)
+                            if (isLoginMode) {
+                                Box(modifier = Modifier.width(40.dp).height(3.dp).background(RoyalBlue, RoundedCornerShape(2.dp)))
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(32.dp))
+                    TextButton(
+                        onClick = { isLoginMode = false },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = if (!isLoginMode) RoyalBlue else Color.Gray
+                        )
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Register", fontSize = 16.sp, fontWeight = if (!isLoginMode) FontWeight.Bold else FontWeight.Normal)
+                            if (!isLoginMode) {
+                                Box(modifier = Modifier.width(55.dp).height(3.dp).background(RoyalBlue, RoundedCornerShape(2.dp)))
+                            }
+                        }
+                    }
+                }
 
                 if (authState is AuthState.Error) {
                     Text(
@@ -79,6 +117,18 @@ fun LoginScreen(
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
+                }
+
+                if (!isLoginMode) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Full Name") },
+                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
                 OutlinedTextField(
@@ -108,29 +158,73 @@ fun LoginScreen(
                     singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = rememberMe,
-                            onCheckedChange = { rememberMe = it }
-                        )
-                        Text("Remember Me")
-                    }
-                    TextButton(onClick = { viewModel.resetPassword(email) }) {
-                        Text("Forgot Password?")
+                if (!isLoginMode) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Select Your Role",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = RoyalBlue,
+                        modifier = Modifier.align(Alignment.Start)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Owner", "General Manager", "Department Head", "Staff").chunked(2).forEach { rowRoles ->
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                rowRoles.forEach { role ->
+                                    val isSelected = selectedRole == role
+                                    OutlinedButton(
+                                        onClick = { selectedRole = role },
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            containerColor = if (isSelected) RoyalBlue.copy(alpha = 0.1f) else Color.Transparent,
+                                            contentColor = if (isSelected) RoyalBlue else Color.Gray
+                                        ),
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            1.dp,
+                                            if (isSelected) RoyalBlue else Color.LightGray
+                                        )
+                                    ) {
+                                        Text(role, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (isLoginMode) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = rememberMe,
+                                onCheckedChange = { rememberMe = it }
+                            )
+                            Text("Remember Me")
+                        }
+                        TextButton(onClick = { viewModel.resetPassword(email) }) {
+                            Text("Forgot Password?")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                } else {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
 
                 Button(
-                    onClick = { viewModel.login(email, password, rememberMe) },
+                    onClick = { 
+                        if (isLoginMode) {
+                            viewModel.login(email, password, rememberMe)
+                        } else {
+                            viewModel.signUp(name, email, password, selectedRole)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -141,7 +235,7 @@ fun LoginScreen(
                     if (authState is AuthState.Loading) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                     } else {
-                        Text("Login", fontSize = 16.sp)
+                        Text(if (isLoginMode) "Login" else "Register & Create Account", fontSize = 16.sp)
                     }
                 }
 
