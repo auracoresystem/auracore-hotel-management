@@ -29,8 +29,8 @@ fun LoginScreen(
     onNavigateToDashboard: (String) -> Unit
 ) {
     val authState by viewModel.authState.collectAsStateWithLifecycle()
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("owner@auracore.com") }
+    var password by remember { mutableStateOf("admin123") }
     var rememberMe by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
 
