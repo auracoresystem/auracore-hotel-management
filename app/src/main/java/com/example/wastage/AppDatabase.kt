@@ -10,9 +10,8 @@ import com.example.data.RepairRequest
 import com.example.data.RoomStatus
 import com.example.data.StaffMember
 
-@Database(entities = [WasteRecord::class, RoomStatus::class, RepairRequest::class, StaffMember::class], version = 2, exportSchema = false)
+@Database(entities = [RoomStatus::class, RepairRequest::class, StaffMember::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun wasteDao(): WasteDao
     abstract fun hotelDao(): HotelDao
 
     companion object {

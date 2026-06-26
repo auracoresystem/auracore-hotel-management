@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.wastage.WastageViewModel
@@ -169,6 +170,12 @@ fun AddWastageScreen(
                 )
             }
 
+            val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+            
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            }
+
             Button(
                 onClick = {
                     val q = quantity.toDoubleOrNull()
@@ -180,9 +187,10 @@ fun AddWastageScreen(
                             unit = unit,
                             reason = reason,
                             remarks = remarks,
-                            photoUri = photoUri.toString()
+                            photoUriString = photoUri.toString(),
+                            onSuccess = { onSaveSuccess() },
+                            onError = { showError = true }
                         )
-                        onSaveSuccess()
                     } else {
                         showError = true
                     }
@@ -192,7 +200,8 @@ fun AddWastageScreen(
                     .padding(vertical = 16.dp)
                     .height(56.dp)
                     .testTag("btn_submit"),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                enabled = !isLoading
             ) {
                 Text("Submit Record", style = MaterialTheme.typography.titleMedium)
             }

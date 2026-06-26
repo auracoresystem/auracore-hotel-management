@@ -15,10 +15,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Bed
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
@@ -26,6 +28,9 @@ import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.RoomService
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -43,17 +48,37 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.Gold
 import com.example.ui.theme.RoyalBlue
 
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.getValue
+import com.example.ui.DashboardViewModel
+import com.example.ui.DashboardState
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
+    dashboardViewModel: DashboardViewModel = viewModel(),
     onNavigateToKitchenWastage: () -> Unit,
     onNavigateToReception: () -> Unit,
     onNavigateToCleaning: () -> Unit,
     onNavigateToRepairs: () -> Unit,
     onNavigateToStaff: () -> Unit,
     onNavigateToReports: () -> Unit,
-    onNavigateToSetup: () -> Unit
+    onNavigateToProfile: () -> Unit,
+    onNavigateToInventory: () -> Unit,
+    onNavigateToHr: () -> Unit,
+    onNavigateToLaundry: () -> Unit,
+    onNavigateToSecurity: () -> Unit,
+    onNavigateToHub: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
+    onLogout: () -> Unit
 ) {
+    val dashboardState by dashboardViewModel.dashboardState.collectAsStateWithLifecycle()
+    val isRefreshing = dashboardState is DashboardState.Loading
+    
     Scaffold(
         topBar = {
             // Custom App Bar matching HTML
@@ -88,25 +113,43 @@ fun DashboardScreen(
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(Color.White.copy(alpha = 0.2f), shape = RoundedCornerShape(16.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notifications",
-                            tint = Color.White
-                        )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(
                             modifier = Modifier
-                                .size(12.dp)
-                                .align(Alignment.TopEnd)
-                                .offset(x = (-8).dp, y = 8.dp)
-                                .background(Gold, shape = CircleShape)
-                                .border(2.dp, RoyalBlue, CircleShape)
-                        )
+                                .size(48.dp)
+                                .background(Color.White.copy(alpha = 0.2f), shape = RoundedCornerShape(16.dp))
+                                .clickable {
+                                    onLogout()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ExitToApp,
+                                contentDescription = "Logout",
+                                tint = Color.White
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(Color.White.copy(alpha = 0.2f), shape = RoundedCornerShape(16.dp))
+                                .clickable { onNavigateToNotifications() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Notifications",
+                                tint = Color.White
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = (-8).dp, y = 8.dp)
+                                    .background(Gold, shape = CircleShape)
+                                    .border(2.dp, RoyalBlue, CircleShape)
+                            )
+                        }
                     }
                 }
             }
@@ -125,7 +168,7 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    BottomNavItem(Icons.Default.Dashboard, "Hub", isSelected = true, onClick = {})
+                    BottomNavItem(Icons.Default.Dashboard, "Home", isSelected = true, onClick = {})
                     BottomNavItem(Icons.Default.Groups, "Staff", isSelected = false, onClick = onNavigateToStaff)
                     
                     // Center Add Button
@@ -142,174 +185,241 @@ fun DashboardScreen(
                     }
                     
                     BottomNavItem(Icons.Default.Analytics, "Reports", isSelected = false, onClick = onNavigateToReports)
-                    BottomNavItem(Icons.Default.Settings, "Setup", isSelected = false, onClick = onNavigateToSetup)
+                    BottomNavItem(Icons.Default.Settings, "Profile", isSelected = false, onClick = onNavigateToProfile)
                 }
             }
         },
         containerColor = Color(0xFFF8FAFC) // Tailwind bg-slate-50
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { dashboardViewModel.loadDashboardData() },
+            modifier = Modifier.fillMaxSize().padding(padding)
         ) {
-            // Key Metrics Grid
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                StatCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Occupancy",
-                    value = "84%",
-                    subtitle = "+2.4%",
-                    icon = Icons.Default.Bed,
-                    iconColor = RoyalBlue
-                )
-                StatCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Revenue",
-                    value = "$12.4k",
-                    subtitle = "Today",
-                    icon = Icons.Default.Payments,
-                    iconColor = Gold
-                )
-            }
-
-            // Operations Quick Access
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            when (val state = dashboardState) {
+                is DashboardState.Loading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = RoyalBlue)
+                }
+                is DashboardState.Error -> {
                     Text(
-                        text = "QUICK MODULES",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E293B), // slate-800
-                        letterSpacing = 0.5.sp
-                    )
-                    Text(
-                        text = "View All",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = RoyalBlue
+                        text = state.message,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                        textAlign = TextAlign.Center
                     )
                 }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ModuleCardItem(
-                        modifier = Modifier.weight(1f),
-                        title = "Reception",
-                        icon = Icons.Default.RoomService,
-                        bgColor = Color(0xFFE0E7FF),
-                        iconBgColor = RoyalBlue,
-                        textColor = RoyalBlue,
-                        onClick = onNavigateToReception
-                    )
-                    ModuleCardItem(
-                        modifier = Modifier.weight(1f),
-                        title = "Cleaning",
-                        icon = Icons.Default.CleaningServices,
-                        bgColor = Color(0xFFFEF3C7),
-                        iconBgColor = Gold,
-                        textColor = Color(0xFF92400E),
-                        onClick = onNavigateToCleaning
-                    )
-                    ModuleCardItem(
-                        modifier = Modifier.weight(1f),
-                        title = "Wastage",
-                        icon = Icons.Default.Delete,
-                        bgColor = Color(0xFFDCFCE7),
-                        iconBgColor = Color(0xFF16A34A), // green-600
-                        textColor = Color(0xFF166534), // green-800
-                        onClick = onNavigateToKitchenWastage
-                    )
-                    ModuleCardItem(
-                        modifier = Modifier.weight(1f),
-                        title = "Repairs",
-                        icon = Icons.Default.Build,
-                        bgColor = Color(0xFFFFEDD5),
-                        iconBgColor = Color(0xFFEA580C), // orange-600
-                        textColor = Color(0xFF9A3412), // orange-800
-                        onClick = onNavigateToRepairs
-                    )
-                }
-            }
-
-            // Critical Alerts Section
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFF0F172A), shape = RoundedCornerShape(24.dp))
-                    .padding(20.dp)
-            ) {
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "LIVE ALERTS",
-                                color = Gold,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.5.sp,
-                                modifier = Modifier.padding(bottom = 4.dp)
-                            )
-                            Text(
-                                text = "Kitchen Wastage Alert: High Variance in Meat Inventory (Section B)",
-                                color = Color.White,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                fontStyle = FontStyle.Italic,
-                                lineHeight = 22.sp
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .background(RoyalBlue, shape = RoundedCornerShape(8.dp))
-                                .padding(horizontal = 8.dp, vertical = 8.dp)
-                        ) {
-                            Text("LVL-1", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
+                is DashboardState.Success -> {
+                    val data = state.data
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color.White.copy(alpha = 0.1f), shape = RoundedCornerShape(16.dp))
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        // Key Metrics Grid
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            StatCard(modifier = Modifier.weight(1f), title = "Occupancy", value = data.occupancy, subtitle = "Live", icon = Icons.Default.Bed, iconColor = RoyalBlue)
+                            StatCard(modifier = Modifier.weight(1f), title = "Revenue", value = data.revenue, subtitle = "Today", icon = Icons.Default.Payments, iconColor = Gold)
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            StatCard(modifier = Modifier.weight(1f), title = "Attendance", value = data.attendance, subtitle = "Staff", icon = Icons.Default.Groups, iconColor = Color(0xFF16A34A))
+                            StatCard(modifier = Modifier.weight(1f), title = "Tasks", value = data.pendingTasks, subtitle = "Pending", icon = Icons.Default.Build, iconColor = Color(0xFFEA580C))
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            StatCard(modifier = Modifier.weight(1f), title = "Wastage", value = data.kitchenWastage, subtitle = "Kitchen", icon = Icons.Default.Delete, iconColor = Color(0xFFDC2626))
+                            StatCard(modifier = Modifier.weight(1f), title = "Alerts", value = data.inventoryAlerts, subtitle = "Inventory", icon = Icons.Default.PriorityHigh, iconColor = Color(0xFF9333EA))
+                        }
+
+                        // Operations Quick Access
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "QUICK MODULES",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1E293B), // slate-800
+                                    letterSpacing = 0.5.sp
+                                )
+                                Text(
+                                    text = "View All",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = RoyalBlue
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                ModuleCardItem(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Reception",
+                                    icon = Icons.Default.RoomService,
+                                    bgColor = Color(0xFFE0E7FF),
+                                    iconBgColor = RoyalBlue,
+                                    textColor = RoyalBlue,
+                                    onClick = onNavigateToReception
+                                )
+                                ModuleCardItem(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Cleaning",
+                                    icon = Icons.Default.CleaningServices,
+                                    bgColor = Color(0xFFFEF3C7),
+                                    iconBgColor = Gold,
+                                    textColor = Color(0xFF92400E),
+                                    onClick = onNavigateToCleaning
+                                )
+                                ModuleCardItem(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Wastage",
+                                    icon = Icons.Default.Delete,
+                                    bgColor = Color(0xFFDCFCE7),
+                                    iconBgColor = Color(0xFF16A34A), // green-600
+                                    textColor = Color(0xFF166534), // green-800
+                                    onClick = onNavigateToKitchenWastage
+                                )
+                                ModuleCardItem(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Repairs",
+                                    icon = Icons.Default.Build,
+                                    bgColor = Color(0xFFFFEDD5),
+                                    iconBgColor = Color(0xFFEA580C), // orange-600
+                                    textColor = Color(0xFF9A3412), // orange-800
+                                    onClick = onNavigateToRepairs
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                ModuleCardItem(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Inventory",
+                                    icon = Icons.Default.ShoppingCart,
+                                    bgColor = Color(0xFFF3E8FF),
+                                    iconBgColor = Color(0xFF9333EA), // purple-600
+                                    textColor = Color(0xFF6B21A8), // purple-800
+                                    onClick = onNavigateToInventory
+                                )
+                                ModuleCardItem(
+                                    modifier = Modifier.weight(1f),
+                                    title = "HR & Atten.",
+                                    icon = Icons.Default.Person,
+                                    bgColor = Color(0xFFE0F2FE),
+                                    iconBgColor = Color(0xFF0284C7), // light blue-600
+                                    textColor = Color(0xFF075985), // light blue-800
+                                    onClick = onNavigateToHr
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                ModuleCardItem(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Security",
+                                    icon = Icons.Default.Lock,
+                                    bgColor = Color(0xFFF1F5F9),
+                                    iconBgColor = Color(0xFF475569), // slate-600
+                                    textColor = Color(0xFF1E293B), // slate-800
+                                    onClick = onNavigateToSecurity
+                                )
+                                ModuleCardItem(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Core Team",
+                                    icon = Icons.Default.Groups,
+                                    bgColor = Color(0xFFFCE7F3),
+                                    iconBgColor = Color(0xFFDB2777), // pink-600
+                                    textColor = Color(0xFF831843), // pink-800
+                                    onClick = onNavigateToHub
+                                )
+                                ModuleCardItem(
+                                    modifier = Modifier.weight(1f),
+                                    title = "Laundry",
+                                    icon = Icons.Default.Done,
+                                    bgColor = Color(0xFFFEF9C3),
+                                    iconBgColor = Color(0xFFCA8A04), // yellow-600
+                                    textColor = Color(0xFF854D0E), // yellow-800
+                                    onClick = onNavigateToLaundry
+                                )
+                            }
+                        }
+
+                        // Critical Alerts Section
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
-                                .background(Color.White.copy(alpha = 0.2f), shape = CircleShape),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .background(Color(0xFF0F172A), shape = RoundedCornerShape(24.dp))
+                                .padding(20.dp)
                         ) {
-                            Icon(Icons.Default.PriorityHigh, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "LIVE ALERTS",
+                                            color = Gold,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.5.sp,
+                                            modifier = Modifier.padding(bottom = 4.dp)
+                                        )
+                                        Text(
+                                            text = "${data.complaints} New Complaints reported today.",
+                                            color = Color.White,
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontStyle = FontStyle.Italic,
+                                            lineHeight = 22.sp
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .background(RoyalBlue, shape = RoundedCornerShape(8.dp))
+                                            .padding(horizontal = 8.dp, vertical = 8.dp)
+                                    ) {
+                                        Text("LVL-1", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color.White.copy(alpha = 0.1f), shape = RoundedCornerShape(16.dp))
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .background(Color.White.copy(alpha = 0.2f), shape = CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.PriorityHigh, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                    }
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(horizontal = 12.dp)
+                                    ) {
+                                        Text("Notifications: ${data.notifications}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                        Text("Check notifications log", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                                    }
+                                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Gold)
+                                }
+                            }
                         }
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 12.dp)
-                        ) {
-                            Text("Water leak reported: Room 402", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                            Text("Assigned to: Maintenance Team", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
-                        }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Gold)
                     }
                 }
             }

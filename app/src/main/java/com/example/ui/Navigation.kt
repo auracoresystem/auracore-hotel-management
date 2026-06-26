@@ -9,6 +9,12 @@ import com.example.wastage.WastageViewModel
 import com.example.ui.HotelViewModel
 import kotlinx.serialization.Serializable
 
+import com.example.ui.AuthViewModel
+import com.example.ui.LoginScreen
+
+@Serializable
+object LoginRoute
+
 @Serializable
 object DashboardRoute
 
@@ -23,21 +29,49 @@ object AddWastageRoute
 @Serializable object RepairsRoute
 @Serializable object StaffRoute
 @Serializable object ReportsRoute
-@Serializable object SetupRoute
+@Serializable object ProfileRoute
+@Serializable object InventoryRoute
+@Serializable object HrRoute
+@Serializable object LaundryRoute
+@Serializable object SecurityRoute
+@Serializable object HubRoute
+@Serializable object NotificationRoute
 
 @Composable
 fun AppNavigation(
     modifier: Modifier = Modifier,
     wastageViewModel: WastageViewModel,
-    hotelViewModel: HotelViewModel
+    hotelViewModel: HotelViewModel,
+    authViewModel: AuthViewModel,
+    receptionViewModel: ReceptionViewModel,
+    housekeepingViewModel: HousekeepingViewModel,
+    maintenanceViewModel: MaintenanceViewModel,
+    inventoryViewModel: InventoryViewModel,
+    hrViewModel: HrViewModel,
+    laundryViewModel: LaundryViewModel,
+    securityViewModel: SecurityViewModel,
+    hubViewModel: HubViewModel,
+    profileViewModel: ProfileViewModel,
+    notificationViewModel: NotificationViewModel,
+    reportsViewModel: ReportsViewModel
 ) {
     val navController = rememberNavController()
 
     NavHost(
         navController = navController,
-        startDestination = DashboardRoute,
+        startDestination = LoginRoute,
         modifier = modifier
     ) {
+        composable<LoginRoute> {
+            LoginScreen(
+                viewModel = authViewModel,
+                onNavigateToDashboard = { role ->
+                    navController.navigate(DashboardRoute) {
+                        popUpTo(LoginRoute) { inclusive = true }
+                    }
+                }
+            )
+        }
         composable<DashboardRoute> {
             DashboardScreen(
                 onNavigateToKitchenWastage = {
@@ -48,7 +82,19 @@ fun AppNavigation(
                 onNavigateToRepairs = { navController.navigate(RepairsRoute) },
                 onNavigateToStaff = { navController.navigate(StaffRoute) },
                 onNavigateToReports = { navController.navigate(ReportsRoute) },
-                onNavigateToSetup = { navController.navigate(SetupRoute) }
+                onNavigateToProfile = { navController.navigate(ProfileRoute) },
+                onNavigateToInventory = { navController.navigate(InventoryRoute) },
+                onNavigateToHr = { navController.navigate(HrRoute) },
+                onNavigateToLaundry = { navController.navigate(LaundryRoute) },
+                onNavigateToSecurity = { navController.navigate(SecurityRoute) },
+                onNavigateToHub = { navController.navigate(HubRoute) },
+                onNavigateToNotifications = { navController.navigate(NotificationRoute) },
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate(LoginRoute) {
+                        popUpTo(DashboardRoute) { inclusive = true }
+                    }
+                }
             )
         }
         composable<KitchenWastageRoute> {
@@ -66,22 +112,40 @@ fun AppNavigation(
             )
         }
         composable<ReceptionRoute> {
-            ReceptionScreen(hotelViewModel = hotelViewModel, onBackClick = { navController.popBackStack() })
+            ReceptionScreen(viewModel = receptionViewModel, onBackClick = { navController.popBackStack() })
         }
         composable<CleaningRoute> {
-            CleaningScreen(hotelViewModel = hotelViewModel, onBackClick = { navController.popBackStack() })
+            HousekeepingScreen(viewModel = housekeepingViewModel, onBackClick = { navController.popBackStack() })
         }
         composable<RepairsRoute> {
-            RepairsScreen(hotelViewModel = hotelViewModel, onBackClick = { navController.popBackStack() })
+            MaintenanceScreen(viewModel = maintenanceViewModel, onBackClick = { navController.popBackStack() })
+        }
+        composable<InventoryRoute> {
+            InventoryScreen(viewModel = inventoryViewModel, onBackClick = { navController.popBackStack() })
         }
         composable<StaffRoute> {
             StaffScreen(hotelViewModel = hotelViewModel, onBackClick = { navController.popBackStack() })
         }
         composable<ReportsRoute> {
-            ReportsScreen(onBackClick = { navController.popBackStack() })
+            ReportsScreen(viewModel = reportsViewModel, onBackClick = { navController.popBackStack() })
         }
-        composable<SetupRoute> {
-            SetupScreen(onBackClick = { navController.popBackStack() })
+        composable<ProfileRoute> {
+            ProfileScreen(viewModel = profileViewModel, onBackClick = { navController.popBackStack() })
+        }
+        composable<HrRoute> {
+            HrScreen(viewModel = hrViewModel, onBackClick = { navController.popBackStack() })
+        }
+        composable<LaundryRoute> {
+            LaundryScreen(viewModel = laundryViewModel, onBackClick = { navController.popBackStack() })
+        }
+        composable<SecurityRoute> {
+            SecurityScreen(viewModel = securityViewModel, onBackClick = { navController.popBackStack() })
+        }
+        composable<HubRoute> {
+            HubScreen(viewModel = hubViewModel, onBackClick = { navController.popBackStack() })
+        }
+        composable<NotificationRoute> {
+            NotificationScreen(viewModel = notificationViewModel, onBackClick = { navController.popBackStack() })
         }
     }
 }
