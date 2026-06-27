@@ -216,6 +216,16 @@ class AuthViewModel : ViewModel() {
                 _authState.value = AuthState.Error("Aapka registration request Hotel Owner dwara reject kar diya gaya hai. Kripya naye details se apply karein.")
                 return
             }
+
+            // If approved, log in with their correct registered hotel and role
+            val role = matchedUser.role
+            if (role != "AuraSuprime") {
+                selectHotel(matchedUser.hotelId)
+            } else {
+                _currentHotel.value = null
+            }
+            _authState.value = AuthState.Authenticated(role)
+            return
         }
 
         // If they enter demo credentials, log them in instantly

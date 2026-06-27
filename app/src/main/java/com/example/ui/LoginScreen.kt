@@ -56,6 +56,25 @@ fun LoginScreen(
     var joinCodeInput by remember { mutableStateOf("") }
     var localErrorMsg by remember { mutableStateOf<String?>(null) }
 
+    var nameError by remember { mutableStateOf(false) }
+    var emailError by remember { mutableStateOf(false) }
+    var phoneError by remember { mutableStateOf(false) }
+    var passwordError by remember { mutableStateOf(false) }
+    var securityKeyError by remember { mutableStateOf(false) }
+    var hotelNameError by remember { mutableStateOf(false) }
+    var joinCodeError by remember { mutableStateOf(false) }
+
+    fun resetErrors() {
+        nameError = false
+        emailError = false
+        phoneError = false
+        passwordError = false
+        securityKeyError = false
+        hotelNameError = false
+        joinCodeError = false
+        localErrorMsg = null
+    }
+
     LaunchedEffect(authState) {
         if (authState is AuthState.Authenticated) {
             onNavigateToDashboard((authState as AuthState.Authenticated).role)
@@ -109,7 +128,10 @@ fun LoginScreen(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     TextButton(
-                        onClick = { isLoginMode = true },
+                        onClick = { 
+                            isLoginMode = true 
+                            resetErrors()
+                        },
                         colors = ButtonDefaults.textButtonColors(
                             contentColor = if (isLoginMode) RoyalBlue else Color.Gray
                         )
@@ -123,7 +145,10 @@ fun LoginScreen(
                     }
                     Spacer(modifier = Modifier.width(32.dp))
                     TextButton(
-                        onClick = { isLoginMode = false },
+                        onClick = { 
+                            isLoginMode = false 
+                            resetErrors()
+                        },
                         colors = ButtonDefaults.textButtonColors(
                             contentColor = if (!isLoginMode) RoyalBlue else Color.Gray
                         )
@@ -194,41 +219,63 @@ fun LoginScreen(
                 if (!isLoginMode) {
                     OutlinedTextField(
                         value = name,
-                        onValueChange = { name = it },
+                        onValueChange = { 
+                            name = it
+                            nameError = false
+                            localErrorMsg = null
+                        },
                         label = { Text("Full Name") },
                         leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        isError = nameError,
+                        supportingText = if (nameError) { { Text("Full Name is required", color = MaterialTheme.colorScheme.error) } } else null
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
                     OutlinedTextField(
                         value = phoneInput,
-                        onValueChange = { phoneInput = it },
+                        onValueChange = { 
+                            phoneInput = it
+                            phoneError = false
+                            localErrorMsg = null
+                        },
                         label = { Text("Mobile Number (Mandatory)") },
                         placeholder = { Text("e.g. +91 9876543210") },
                         leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        isError = phoneError,
+                        supportingText = if (phoneError) { { Text("Mobile Number is mandatory for registration", color = MaterialTheme.colorScheme.error) } } else null
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = { 
+                        email = it
+                        emailError = false
+                        localErrorMsg = null
+                    },
                     label = { Text("Email") },
                     leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    isError = emailError,
+                    supportingText = if (emailError) { { Text("Please enter a valid email", color = MaterialTheme.colorScheme.error) } } else null
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it },
+                    onValueChange = { 
+                        password = it
+                        passwordError = false
+                        localErrorMsg = null
+                    },
                     label = { Text("Password") },
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                     trailingIcon = {
@@ -239,7 +286,9 @@ fun LoginScreen(
                     },
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    isError = passwordError,
+                    supportingText = if (passwordError) { { Text("Password must be at least 4 characters", color = MaterialTheme.colorScheme.error) } } else null
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -400,6 +449,7 @@ fun LoginScreen(
                             value = securityKey,
                             onValueChange = { 
                                 securityKey = it
+                                securityKeyError = false
                                 localErrorMsg = null
                             },
                             label = { Text("Superuser Master Security Key") },
@@ -407,7 +457,9 @@ fun LoginScreen(
                             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                             visualTransformation = PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            singleLine = true,
+                            isError = securityKeyError,
+                            supportingText = if (securityKeyError) { { Text("Invalid Master Security Key", color = MaterialTheme.colorScheme.error) } } else null
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                     } else if (selectedRole == "Owner") {
@@ -415,12 +467,15 @@ fun LoginScreen(
                             value = hotelNameInput,
                             onValueChange = { 
                                 hotelNameInput = it
+                                hotelNameError = false
                                 localErrorMsg = null
                             },
                             label = { Text("New Hotel Name") },
                             placeholder = { Text("e.g. Grand Palace Resort") },
                             modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            singleLine = true,
+                            isError = hotelNameError,
+                            supportingText = if (hotelNameError) { { Text("Hotel name is required to register", color = MaterialTheme.colorScheme.error) } } else null
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                     } else {
@@ -454,13 +509,16 @@ fun LoginScreen(
                             value = joinCodeInput,
                             onValueChange = { 
                                 joinCodeInput = it
+                                joinCodeError = false
                                 localErrorMsg = null
                             },
                             label = { Text("Hotel Join Code (Mandatory)") },
                             placeholder = { Text("Ask your Owner/GM for the code (e.g. AURA123)") },
                             leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
                             modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            singleLine = true,
+                            isError = joinCodeError,
+                            supportingText = if (joinCodeError) { { Text("Valid Hotel Join Code is mandatory", color = MaterialTheme.colorScheme.error) } } else null
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                     }
@@ -492,38 +550,73 @@ fun LoginScreen(
 
                 Button(
                     onClick = { 
+                        // Reset all errors before checking
+                        nameError = false
+                        emailError = false
+                        phoneError = false
+                        passwordError = false
+                        securityKeyError = false
+                        hotelNameError = false
+                        joinCodeError = false
+                        localErrorMsg = null
+
                         if (isLoginMode) {
-                            viewModel.login(email, password, rememberMe, selectedHotelId)
-                        } else {
-                            if (name.isBlank() || email.isBlank() || password.isBlank()) {
-                                localErrorMsg = "All fields are required."
-                            } else if (phoneInput.trim().isBlank()) {
-                                localErrorMsg = "Mobile Number is mandatory for registration."
-                            } else if (selectedRole == "AuraSuprime") {
-                                if (securityKey.trim() != "SUPREME123" && securityKey.trim() != "AURASUPREME2026") {
-                                    localErrorMsg = "Access Denied: Invalid AuraCore Master Security Key."
-                                } else {
-                                    localErrorMsg = null
-                                    viewModel.signUp(name, email, password, phoneInput, selectedRole, null, null)
-                                }
-                            } else if (selectedRole == "Owner") {
-                                if (hotelNameInput.isBlank()) {
-                                    localErrorMsg = "Please enter your New Hotel Name."
-                                } else {
-                                    localErrorMsg = null
-                                    viewModel.signUp(name, email, password, phoneInput, selectedRole, null, hotelNameInput)
-                                }
+                            if (email.isBlank() || password.isBlank()) {
+                                if (email.isBlank()) emailError = true
+                                if (password.isBlank()) passwordError = true
+                                localErrorMsg = "Email and Password are required."
                             } else {
-                                // Staff / GM joining a hotel
-                                if (joinCodeInput.trim().isBlank()) {
-                                    localErrorMsg = "Hotel Join Code is mandatory."
-                                } else {
-                                    val matchedHotel = hotels.find { it.joinCode.trim().equals(joinCodeInput.trim(), ignoreCase = true) }
-                                    if (matchedHotel == null) {
-                                        localErrorMsg = "Invalid Hotel Join Code. Please ask your Hotel Owner or GM for the correct registration code."
+                                viewModel.login(email, password, rememberMe, selectedHotelId)
+                            }
+                        } else {
+                            var hasErr = false
+                            if (name.isBlank()) {
+                                nameError = true
+                                hasErr = true
+                            }
+                            if (email.isBlank()) {
+                                emailError = true
+                                hasErr = true
+                            }
+                            if (password.isBlank() || password.length < 4) {
+                                passwordError = true
+                                hasErr = true
+                            }
+                            if (phoneInput.trim().isBlank()) {
+                                phoneError = true
+                                hasErr = true
+                            }
+
+                            if (hasErr) {
+                                localErrorMsg = "All fields including Mobile Number are required, and password must be at least 4 characters."
+                            } else {
+                                if (selectedRole == "AuraSuprime") {
+                                    if (securityKey.trim() != "SUPREME123" && securityKey.trim() != "AURASUPREME2026") {
+                                        securityKeyError = true
+                                        localErrorMsg = "Access Denied: Invalid AuraCore Master Security Key."
                                     } else {
-                                        localErrorMsg = null
-                                        viewModel.signUp(name, email, password, phoneInput, selectedRole, matchedHotel.id, null)
+                                        viewModel.signUp(name, email, password, phoneInput, selectedRole, null, null)
+                                    }
+                                } else if (selectedRole == "Owner") {
+                                    if (hotelNameInput.isBlank()) {
+                                        hotelNameError = true
+                                        localErrorMsg = "Please enter your New Hotel Name."
+                                    } else {
+                                        viewModel.signUp(name, email, password, phoneInput, selectedRole, null, hotelNameInput)
+                                    }
+                                } else {
+                                    // Staff / GM joining a hotel
+                                    if (joinCodeInput.trim().isBlank()) {
+                                        joinCodeError = true
+                                        localErrorMsg = "Hotel Join Code is mandatory."
+                                    } else {
+                                        val matchedHotel = hotels.find { it.joinCode.trim().equals(joinCodeInput.trim(), ignoreCase = true) }
+                                        if (matchedHotel == null) {
+                                            joinCodeError = true
+                                            localErrorMsg = "Invalid Hotel Join Code. Please ask your Hotel Owner or GM for the correct registration code."
+                                        } else {
+                                            viewModel.signUp(name, email, password, phoneInput, selectedRole, matchedHotel.id, null)
+                                        }
                                     }
                                 }
                             }
