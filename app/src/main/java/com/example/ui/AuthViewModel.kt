@@ -219,10 +219,64 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
-    private val _hotels = MutableStateFlow<List<HotelTenant>>(initialHotels)
+    private fun saveHotelsToPrefs(hotelsList: List<HotelTenant>) {
+        try {
+            val jsonArray = JSONArray()
+            hotelsList.forEach { h ->
+                val jsonObject = JSONObject().apply {
+                    put("id", h.id)
+                    put("name", h.name)
+                    put("ownerName", h.ownerName)
+                    put("ownerEmail", h.ownerEmail)
+                    put("subscriptionPlan", h.subscriptionPlan)
+                    put("status", h.status)
+                    put("staffCount", h.staffCount)
+                    put("roomsCount", h.roomsCount)
+                    put("subscriptionExpires", h.subscriptionExpires)
+                    put("joinCode", h.joinCode)
+                    put("hotelCode", h.hotelCode)
+                }
+                jsonArray.put(jsonObject)
+            }
+            sharedPrefs.edit().putString("saved_hotels", jsonArray.toString()).apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun loadHotelsFromPrefs(): List<HotelTenant> {
+        val hotelsList = mutableListOf<HotelTenant>()
+        try {
+            val savedJson = sharedPrefs.getString("saved_hotels", null)
+            if (savedJson != null) {
+                val jsonArray = JSONArray(savedJson)
+                for (i in 0 until jsonArray.length()) {
+                    val obj = jsonArray.getJSONObject(i)
+                    hotelsList.add(HotelTenant(
+                        id = obj.getString("id"),
+                        name = obj.getString("name"),
+                        ownerName = obj.getString("ownerName"),
+                        ownerEmail = obj.getString("ownerEmail"),
+                        subscriptionPlan = obj.getString("subscriptionPlan"),
+                        status = obj.getString("status"),
+                        staffCount = obj.getInt("staffCount"),
+                        roomsCount = obj.getInt("roomsCount"),
+                        subscriptionExpires = obj.getString("subscriptionExpires"),
+                        joinCode = obj.optString("joinCode", ""),
+                        hotelCode = obj.optString("hotelCode", "")
+                    ))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return if (hotelsList.isNotEmpty()) hotelsList else initialHotels
+    }
+
+    private val _hotels = MutableStateFlow<List<HotelTenant>>(loadHotelsFromPrefs())
     val hotels: StateFlow<List<HotelTenant>> = _hotels.asStateFlow()
 
-    private val _currentHotel = MutableStateFlow<HotelTenant?>(initialHotels[0])
+    private val _currentHotel = MutableStateFlow<HotelTenant?>(loadHotelsFromPrefs().firstOrNull())
     val currentHotel: StateFlow<HotelTenant?> = _currentHotel.asStateFlow()
 
     init {
@@ -250,6 +304,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             if (it.id == hotelId) it.copy(status = status) else it
         }
         _hotels.value = updatedList
+        saveHotelsToPrefs(updatedList)
         if (_currentHotel.value?.id == hotelId) {
             _currentHotel.value = updatedList.find { it.id == hotelId }
         }
@@ -260,6 +315,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             if (it.id == hotelId) it.copy(subscriptionPlan = plan) else it
         }
         _hotels.value = updatedList
+        saveHotelsToPrefs(updatedList)
         if (_currentHotel.value?.id == hotelId) {
             _currentHotel.value = updatedList.find { it.id == hotelId }
         }
@@ -286,6 +342,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val updatedList = _hotels.value.toMutableList()
         updatedList.add(newHotel)
         _hotels.value = updatedList
+        saveHotelsToPrefs(updatedList)
         _currentHotel.value = newHotel
     }
 
@@ -504,9 +561,28 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 val db = firestore ?: throw Exception("Firestore not initialized.")
                 val document = db.collection("users").document(uid).get().await()
                 val role = document.getString("role") ?: "Owner"
-                _authState.value = AuthState.Authenticated(role)
+                val name = document.getString("name") ?: "User"
+                val hotelId = document.getString("hotelId")
+                
+                if (hotelId != null && role != "AuraSuprime") {
+                    selectHotel(hotelId)
+                } else if (role == "AuraSuprime") {
+                    _currentHotel.value = null
+                }
+                _authState.value = AuthState.Authenticated(role, name)
             } catch (e: Exception) {
-                _authState.value = AuthState.Authenticated("Owner")
+                val userEmail = auth?.currentUser?.email
+                val localUser = _registeredUsers.value.find { it.email.equals(userEmail, ignoreCase = true) }
+                if (localUser != null) {
+                    if (localUser.role != "AuraSuprime") {
+                        selectHotel(localUser.hotelId)
+                    } else {
+                        _currentHotel.value = null
+                    }
+                    _authState.value = AuthState.Authenticated(localUser.role, localUser.name)
+                } else {
+                    _authState.value = AuthState.Authenticated("Owner")
+                }
             }
         }
     }
