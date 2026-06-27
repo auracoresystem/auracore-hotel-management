@@ -36,14 +36,28 @@ import java.util.Locale
 @Composable
 fun InventoryScreen(
     viewModel: InventoryViewModel,
+    authViewModel: AuthViewModel,
     onBackClick: () -> Unit
 ) {
     val items by viewModel.items.collectAsStateWithLifecycle()
     val requirements by viewModel.requirements.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    
+    val authState by authViewModel.authState.collectAsStateWithLifecycle()
+    val userRole = when (val state = authState) {
+        is AuthState.Authenticated -> state.role
+        else -> ""
+    }
+    
+    val currentUser = authViewModel.registeredUsers.collectAsStateWithLifecycle().value.find { 
+        (authState as? AuthState.Authenticated)?.name == it.name 
+    }
+    val isCoreTeam = currentUser?.isCoreTeam ?: false
+    val hasApprovalAuthority = currentUser?.hasApprovalAuthority ?: false
 
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableStateOf(if (userRole == "Kitchen Staff") 1 else 0) }
     var showAddItemDialog by remember { mutableStateOf(false) }
+    var showAddRequisitionDialog by remember { mutableStateOf(false) }
     var showTransactionDialog by remember { mutableStateOf(false) }
     var selectedItem by remember { mutableStateOf<InventoryItem?>(null) }
 
@@ -51,8 +65,10 @@ fun InventoryScreen(
         title = "Store Inventory & Requisitions",
         onBackClick = onBackClick,
         fabAction = {
-            if (selectedTab == 0) {
+            if (selectedTab == 0 && userRole != "Kitchen Staff") {
                 showAddItemDialog = true
+            } else if (selectedTab == 1 && userRole == "Kitchen Staff") {
+                showAddRequisitionDialog = true
             }
         }
     ) { padding ->
@@ -66,46 +82,48 @@ fun InventoryScreen(
             }
 
             // Tabs for Stock & Kitchen Requests
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = Color.White,
-                contentColor = RoyalBlue,
-                indicator = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(
-                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                        color = RoyalBlue
+            if (userRole != "Kitchen Staff") {
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = Color.White,
+                    contentColor = RoyalBlue,
+                    indicator = { tabPositions ->
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                            color = RoyalBlue
+                        )
+                    }
+                ) {
+                    Tab(
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.LocalMall, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Store Stock", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    )
+                    Tab(
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.ShoppingCart, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                val pendingCount = requirements.count { it.status == "Passed (Chef Approved)" }
+                                if (pendingCount > 0) {
+                                    Badge(containerColor = Color.Red, contentColor = Color.White) {
+                                        Text("$pendingCount")
+                                    }
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                }
+                                Text("Requisitions", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
                     )
                 }
-            ) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.LocalMall, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Store Stock", fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.ShoppingCart, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            val pendingCount = requirements.count { it.status == "Passed (Chef Approved)" }
-                            if (pendingCount > 0) {
-                                Badge(containerColor = Color.Red, contentColor = Color.White) {
-                                    Text("$pendingCount")
-                                }
-                                Spacer(modifier = Modifier.width(4.dp))
-                            }
-                            Text("Requisitions", fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                )
             }
 
             if (selectedTab == 0) {
@@ -168,7 +186,11 @@ fun InventoryScreen(
                         items(requirements) { req ->
                             StoreRequisitionCard(
                                 req = req,
-                                onIssue = { viewModel.issueRequirement(req.id) }
+                                userRole = userRole,
+                                hasApprovalAuthority = hasApprovalAuthority,
+                                onIssue = { viewModel.issueRequirement(req.id) },
+                                onApprove = { viewModel.passRequirement(req.id) },
+                                onReject = { viewModel.rejectRequirement(req.id) }
                             )
                         }
                     }
@@ -182,6 +204,17 @@ fun InventoryScreen(
             onDismiss = { showAddItemDialog = false },
             onAdd = { item ->
                 viewModel.addItem(item, onSuccess = { showAddItemDialog = false })
+            }
+        )
+    }
+
+    if (showAddRequisitionDialog) {
+        AddRequisitionDialog(
+            onDismiss = { showAddRequisitionDialog = false },
+            onAdd = { name, qty, unit ->
+                val userName = (authState as? AuthState.Authenticated)?.name ?: "Kitchen Staff"
+                viewModel.addRequirement(name, qty, unit, userName)
+                showAddRequisitionDialog = false
             }
         )
     }
@@ -246,7 +279,11 @@ fun InventoryCard(item: InventoryItem, onClick: () -> Unit) {
 @Composable
 fun StoreRequisitionCard(
     req: KitchenRequirement,
-    onIssue: () -> Unit
+    userRole: String,
+    hasApprovalAuthority: Boolean,
+    onIssue: () -> Unit,
+    onApprove: () -> Unit,
+    onReject: () -> Unit
 ) {
     val dateStr = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()).format(Date(req.date))
 
@@ -307,13 +344,21 @@ fun StoreRequisitionCard(
                 Text(text = "Requested: $dateStr", style = MaterialTheme.typography.labelSmall, color = Color(0xFF94A3B8))
                 
                 if (req.status == "Passed (Chef Approved)") {
-                    Button(
-                        onClick = onIssue,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.height(34.dp)
-                    ) {
-                        Text("Issue Supplies", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    if (userRole == "Store" || userRole == "Owner" || userRole == "General Manager") {
+                        Button(
+                            onClick = onIssue,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Text("Issue Supplies", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Chef Approved", fontSize = 11.sp, color = Color(0xFF10B981), fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 } else if (req.status == "Issued") {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -322,15 +367,71 @@ fun StoreRequisitionCard(
                         Text("Issued (Stock Deducted)", fontSize = 11.sp, color = Color(0xFF10B981), fontWeight = FontWeight.SemiBold)
                     }
                 } else if (req.status == "Pending Chef Approval") {
+                    if (hasApprovalAuthority) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = onReject,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.height(34.dp)
+                            ) {
+                                Text("Reject", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Button(
+                                onClick = onApprove,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.height(34.dp)
+                            ) {
+                                Text("Approve", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.PendingActions, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Awaiting Chef Approval", fontSize = 11.sp, color = Color(0xFFF59E0B), fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                } else if (req.status == "Rejected") {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.PendingActions, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Awaiting Chef Approval", fontSize = 11.sp, color = Color(0xFFF59E0B), fontWeight = FontWeight.SemiBold)
+                        Text("Rejected", fontSize = 11.sp, color = Color.Red, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+fun AddRequisitionDialog(
+    onDismiss: () -> Unit,
+    onAdd: (String, Double, String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var qty by remember { mutableStateOf("") }
+    var unit by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Request Supplies", fontWeight = FontWeight.Bold, color = RoyalBlue) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Item Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = qty, onValueChange = { qty = it }, label = { Text("Quantity") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = unit, onValueChange = { unit = it }, label = { Text("Unit (kg, Ltr, Pcs)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = {
+            Button(onClick = { 
+                val q = qty.toDoubleOrNull() ?: 0.0
+                if (name.isNotBlank() && q > 0) {
+                    onAdd(name, q, unit)
+                }
+            }, colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue)) { Text("Request") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Composable

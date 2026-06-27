@@ -431,7 +431,7 @@ fun LoginScreen(
                         listOf(
                             "AuraSuprime", "Owner", "General Manager", "Department Head",
                             "HR", "Receptionist", "Housekeeping", "Security",
-                            "Kitchen Staff", "Maintenance"
+                            "Kitchen Staff", "Store", "Maintenance"
                         ).chunked(2).forEach { rowRoles ->
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 rowRoles.forEach { role ->
@@ -832,6 +832,15 @@ fun LoginScreen(
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
                         Text("Kitchen", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Button(
+                        onClick = { viewModel.loginAsDemo("Store", selectedHotelId) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6)), // Purple
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Text("Store", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                     Button(
                         onClick = { viewModel.loginAsDemo("Maintenance", selectedHotelId) },

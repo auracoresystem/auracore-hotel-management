@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Bed
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Dashboard
@@ -59,6 +60,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Assignment
 import com.example.ui.DashboardViewModel
 import com.example.ui.DashboardState
@@ -82,6 +84,7 @@ fun DashboardScreen(
     onNavigateToReports: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToInventory: () -> Unit,
+    onNavigateToChefCabin: () -> Unit,
     onNavigateToHr: () -> Unit,
     onNavigateToLaundry: () -> Unit,
     onNavigateToSecurity: () -> Unit,
@@ -113,6 +116,8 @@ fun DashboardScreen(
     var activeAdminTab by remember { mutableStateOf("hotels") } // "hotels" or "ops"
     
     val isCoreTeam = userRole == "Owner" || userRole == "General Manager" || userRole == "Department Head" || userRole == "AuraSuprime"
+    val loggedInUserObj = registeredUsers.find { (authState as? AuthState.Authenticated)?.name == it.name }
+    val hasApprovalAuthority = loggedInUserObj?.hasApprovalAuthority ?: false
     
     Scaffold(
         topBar = {
@@ -774,6 +779,7 @@ fun DashboardScreen(
                                             "Security" -> Icons.Default.Lock
                                             "Receptionist" -> Icons.Default.RoomService
                                             "Kitchen Staff" -> Icons.Default.Restaurant
+                                            "Store" -> Icons.Default.Storefront
                                             "Maintenance" -> Icons.Default.Build
                                             else -> Icons.Default.Person
                                         },
@@ -839,6 +845,11 @@ fun DashboardScreen(
                                         StatCard(modifier = Modifier.weight(1f), title = "Kitchen Wastage", value = data.kitchenWastage, subtitle = "Today Log", icon = Icons.Default.Delete, iconColor = Color(0xFFDC2626))
                                     }
                                 }
+                                "Store" -> {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        StatCard(modifier = Modifier.weight(1f), title = "Alerts", value = data.inventoryAlerts, subtitle = "Inventory", icon = Icons.Default.PriorityHigh, iconColor = Color(0xFF9333EA))
+                                    }
+                                }
                                 "Maintenance" -> {
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                         StatCard(modifier = Modifier.weight(1f), title = "Repairs Needed", value = data.pendingTasks, subtitle = "Open Tickets", icon = Icons.Default.Build, iconColor = Color(0xFFEA580C))
@@ -877,7 +888,7 @@ fun DashboardScreen(
                                         DashboardModuleItem("Cleaning", Icons.Default.CleaningServices, onNavigateToCleaning),
                                         DashboardModuleItem("Wastage", Icons.Default.Delete, onNavigateToKitchenWastage),
                                         DashboardModuleItem("Repairs", Icons.Default.Build, onNavigateToRepairs),
-                                        DashboardModuleItem("Inventory", Icons.Default.ShoppingCart, onNavigateToInventory),
+                                        DashboardModuleItem("Store", Icons.Default.ShoppingCart, onNavigateToInventory),
                                         DashboardModuleItem("HR & Atten.", Icons.Default.Person, onNavigateToHr),
                                         DashboardModuleItem("Security", Icons.Default.Lock, onNavigateToSecurity),
                                         DashboardModuleItem("Core Team Hub", Icons.Default.Groups, onNavigateToHub),
@@ -900,9 +911,21 @@ fun DashboardScreen(
                                         DashboardModuleItem("Laundry", Icons.Default.Done, onNavigateToLaundry),
                                         DashboardModuleItem("Notice Board", Icons.Default.Campaign, onNavigateToHub)
                                     )
-                                    userRole == "Kitchen Staff" -> listOf(
+                                    userRole == "Kitchen Staff" -> {
+                                        val modules = mutableListOf(
+                                            DashboardModuleItem("My Tasks", Icons.Default.Assignment, onNavigateToAttendance),
+                                            DashboardModuleItem("Wastage", Icons.Default.Delete, onNavigateToKitchenWastage),
+                                            DashboardModuleItem("Store Request", Icons.Default.ShoppingCart, onNavigateToInventory),
+                                            DashboardModuleItem("Notice Board", Icons.Default.Campaign, onNavigateToHub)
+                                        )
+                                        if (hasApprovalAuthority) {
+                                            modules.add(1, DashboardModuleItem("Chef Cabin", Icons.Default.Analytics, onNavigateToChefCabin))
+                                        }
+                                        modules
+                                    }
+                                    userRole == "Store" -> listOf(
                                         DashboardModuleItem("My Tasks", Icons.Default.Assignment, onNavigateToAttendance),
-                                        DashboardModuleItem("Wastage", Icons.Default.Delete, onNavigateToKitchenWastage),
+                                        DashboardModuleItem("Store", Icons.Default.ShoppingCart, onNavigateToInventory),
                                         DashboardModuleItem("Notice Board", Icons.Default.Campaign, onNavigateToHub)
                                     )
                                     userRole == "Maintenance" -> listOf(

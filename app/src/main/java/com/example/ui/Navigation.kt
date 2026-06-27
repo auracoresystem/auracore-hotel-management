@@ -33,6 +33,7 @@ object AddWastageRoute
 @Serializable object ReportsRoute
 @Serializable object ProfileRoute
 @Serializable object InventoryRoute
+@Serializable object ChefCabinRoute
 @Serializable object HrRoute
 @Serializable object LaundryRoute
 @Serializable object SecurityRoute
@@ -93,6 +94,7 @@ fun AppNavigation(
                 onNavigateToReports = { navController.navigate(ReportsRoute) },
                 onNavigateToProfile = { navController.navigate(ProfileRoute) },
                 onNavigateToInventory = { navController.navigate(InventoryRoute) },
+                onNavigateToChefCabin = { navController.navigate(ChefCabinRoute) },
                 onNavigateToHr = { navController.navigate(HrRoute) },
                 onNavigateToLaundry = { navController.navigate(LaundryRoute) },
                 onNavigateToSecurity = { navController.navigate(SecurityRoute) },
@@ -137,7 +139,10 @@ fun AppNavigation(
             MaintenanceScreen(viewModel = maintenanceViewModel, onBackClick = { navController.popBackStack() })
         }
         composable<InventoryRoute> {
-            InventoryScreen(viewModel = inventoryViewModel, onBackClick = { navController.popBackStack() })
+            InventoryScreen(viewModel = inventoryViewModel, authViewModel = authViewModel, onBackClick = { navController.popBackStack() })
+        }
+        composable<ChefCabinRoute> {
+            ChefCabinScreen(onBackClick = { navController.popBackStack() })
         }
         composable<AttendanceRoute> {
             val authState by authViewModel.authState.collectAsStateWithLifecycle()
