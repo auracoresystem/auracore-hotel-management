@@ -31,8 +31,10 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,6 +71,7 @@ data class DashboardModuleItem(
 @Composable
 fun DashboardScreen(
     dashboardViewModel: DashboardViewModel = viewModel(),
+    authViewModel: AuthViewModel,
     userRole: String = "Owner",
     onNavigateToKitchenWastage: () -> Unit,
     onNavigateToReception: () -> Unit,
@@ -87,6 +90,17 @@ fun DashboardScreen(
 ) {
     val dashboardState by dashboardViewModel.dashboardState.collectAsStateWithLifecycle()
     val isRefreshing = dashboardState is DashboardState.Loading
+    
+    val currentHotel by authViewModel.currentHotel.collectAsStateWithLifecycle()
+    val hotels by authViewModel.hotels.collectAsStateWithLifecycle()
+
+    var showAddHotelDialog by remember { mutableStateOf(false) }
+    var newHotelName by remember { mutableStateOf("") }
+    var newHotelOwnerName by remember { mutableStateOf("") }
+    var newHotelOwnerEmail by remember { mutableStateOf("") }
+    var newHotelPlan by remember { mutableStateOf("Basic") }
+
+    var activeAdminTab by remember { mutableStateOf("hotels") } // "hotels" or "ops"
     
     val isCoreTeam = userRole == "Owner" || userRole == "General Manager" || userRole == "Department Head" || userRole == "AuraSuprime"
     
@@ -111,16 +125,16 @@ fun DashboardScreen(
                 ) {
                     Column {
                         Text(
-                            text = if (isCoreTeam) "AURACORE CORE TEAM" else "AURACORE DEPT STAFF",
+                            text = if (userRole == "AuraSuprime") "AURACORE PLATFORM CREATOR" else (currentHotel?.name ?: "No Hotel").uppercase(),
                             color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp
                         )
                         Text(
-                            text = userRole,
+                            text = if (userRole == "AuraSuprime") "AuraSuprime Admin" else userRole,
                             color = Color.White,
-                            fontSize = 24.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -212,25 +226,95 @@ fun DashboardScreen(
         },
         containerColor = Color(0xFFF8FAFC) // Tailwind bg-slate-50
     ) { padding ->
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = { dashboardViewModel.loadDashboardData() },
-            modifier = Modifier.fillMaxSize().padding(padding)
-        ) {
-            when (val state = dashboardState) {
-                is DashboardState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = RoyalBlue)
+        if (currentHotel?.status == "Suspended" && userRole != "AuraSuprime") {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .background(Color(0xFFFEF2F2))
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Suspended",
+                            tint = Color.Red,
+                            modifier = Modifier.size(64.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Subscription Suspended",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = Color.Red
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "The subscription for ${currentHotel?.name ?: "your hotel"} has been suspended or has expired. Please contact AuraSuprime Admin for details.",
+                            textAlign = TextAlign.Center,
+                            fontSize = 13.sp,
+                            color = Color.Gray
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Surface(
+                            color = Color(0xFFF1F5F9),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text("Hotel ID: ${currentHotel?.id}", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Owner: ${currentHotel?.ownerName}", fontSize = 12.sp)
+                                Text("Plan: ${currentHotel?.subscriptionPlan}", fontSize = 12.sp)
+                                Text("Status: Suspended", fontSize = 12.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = { onLogout() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Log Out / Switch Account", color = Color.White)
+                        }
+                    }
                 }
-                is DashboardState.Error -> {
-                    Text(
-                        text = state.message,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
-                        textAlign = TextAlign.Center
-                    )
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
+                if (userRole == "AuraSuprime") {
+                    TabRow(
+                        selectedTabIndex = if (activeAdminTab == "hotels") 0 else 1,
+                        containerColor = Color.White,
+                        contentColor = RoyalBlue
+                    ) {
+                        Tab(
+                            selected = activeAdminTab == "hotels",
+                            onClick = { activeAdminTab = "hotels" },
+                            text = { Text("👑 SaaS Clients", fontWeight = FontWeight.Bold) }
+                        )
+                        Tab(
+                            selected = activeAdminTab == "ops",
+                            onClick = { activeAdminTab = "ops" },
+                            text = { Text("🏨 Operational View", fontWeight = FontWeight.Bold) }
+                        )
+                    }
                 }
-                is DashboardState.Success -> {
-                    val data = state.data
+
+                if (userRole == "AuraSuprime" && activeAdminTab == "hotels") {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -238,13 +322,310 @@ fun DashboardScreen(
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Department Workspace Banner Card
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = RoyalBlue.copy(alpha = 0.05f)),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, RoyalBlue.copy(alpha = 0.15f)),
-                            shape = RoundedCornerShape(16.dp)
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            shape = RoundedCornerShape(16.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("AuraCore Platform Control Center", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = RoyalBlue)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Manage subscriptions, activate/suspend hotel clients and see active staff counts.", fontSize = 12.sp, color = Color.Gray)
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .background(Color(0xFFEFF6FF), RoundedCornerShape(8.dp))
+                                            .padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text("Total Hotels", fontSize = 11.sp, color = Color.Gray)
+                                        Text("${hotels.size}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = RoyalBlue)
+                                    }
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .background(Color(0xFFECFDF5), RoundedCornerShape(8.dp))
+                                            .padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text("Active", fontSize = 11.sp, color = Color.Gray)
+                                        Text("${hotels.count { it.status == "Active" }}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                                    }
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .background(Color(0xFFFEF2F2), RoundedCornerShape(8.dp))
+                                            .padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text("Suspended", fontSize = 11.sp, color = Color.Gray)
+                                        Text("${hotels.count { it.status == "Suspended" }}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Red)
+                                    }
+                                }
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = { showAddHotelDialog = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Register New Hotel Tenant", color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        Text("All Registered Subscribed Hotels", fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.padding(top = 8.dp))
+
+                        hotels.forEach { hotel ->
+                            val isSuspended = hotel.status == "Suspended"
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                shape = RoundedCornerShape(12.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(hotel.name, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Surface(
+                                                    color = when (hotel.subscriptionPlan) {
+                                                        "Enterprise" -> Color(0xFFFAF5FF)
+                                                        "Premium" -> Color(0xFFEFF6FF)
+                                                        else -> Color(0xFFF1F5F9)
+                                                    },
+                                                    shape = RoundedCornerShape(4.dp)
+                                                ) {
+                                                    Text(
+                                                        text = hotel.subscriptionPlan,
+                                                        color = when (hotel.subscriptionPlan) {
+                                                            "Enterprise" -> Color(0xFF8B5CF6)
+                                                            "Premium" -> RoyalBlue
+                                                            else -> Color.Gray
+                                                        },
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            }
+                                            Text("Owner: ${hotel.ownerName} (${hotel.ownerEmail})", fontSize = 12.sp, color = Color.Gray)
+                                        }
+                                        Surface(
+                                            color = if (isSuspended) Color(0xFFFEF2F2) else Color(0xFFECFDF5),
+                                            shape = RoundedCornerShape(6.dp)
+                                        ) {
+                                            Text(
+                                                text = hotel.status.uppercase(),
+                                                color = if (isSuspended) Color.Red else Color(0xFF10B981),
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    HorizontalDivider(color = Color(0xFFF1F5F9))
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            val maxStaff = when(hotel.subscriptionPlan) {
+                                                "Basic" -> 10
+                                                "Premium" -> 25
+                                                else -> 100
+                                            }
+                                            Text("Staff Capacity: ${hotel.staffCount} / $maxStaff users", fontSize = 11.sp, color = Color.Gray)
+                                            Text("Room Outlets: ${hotel.roomsCount} operational", fontSize = 11.sp, color = Color.Gray)
+                                            Text("Renewal Date: ${hotel.subscriptionExpires}", fontSize = 11.sp, color = Color.Gray)
+                                        }
+
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Button(
+                                                onClick = {
+                                                    val nextStatus = if (isSuspended) "Active" else "Suspended"
+                                                    authViewModel.updateHotelStatus(hotel.id, nextStatus)
+                                                },
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = if (isSuspended) Color(0xFF10B981) else Color(0xFFEF4444)
+                                                ),
+                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                                shape = RoundedCornerShape(6.dp)
+                                            ) {
+                                                Text(if (isSuspended) "Activate" else "Suspend", fontSize = 11.sp, color = Color.White)
+                                            }
+
+                                            OutlinedButton(
+                                                onClick = {
+                                                    val nextPlan = when (hotel.subscriptionPlan) {
+                                                        "Basic" -> "Premium"
+                                                        "Premium" -> "Enterprise"
+                                                        else -> "Basic"
+                                                    }
+                                                    authViewModel.updateHotelPlan(hotel.id, nextPlan)
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                                shape = RoundedCornerShape(6.dp)
+                                            ) {
+                                                Text("Upgrade", fontSize = 11.sp)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    PullToRefreshBox(
+                        isRefreshing = isRefreshing,
+                        onRefresh = { dashboardViewModel.loadDashboardData() },
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        when (val state = dashboardState) {
+                            is DashboardState.Loading -> {
+                                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = RoyalBlue)
+                            }
+                            is DashboardState.Error -> {
+                                Text(
+                                    text = state.message,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                            is DashboardState.Success -> {
+                                val data = state.data
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState())
+                                        .padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    if (userRole == "AuraSuprime") {
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = CardDefaults.cardColors(containerColor = RoyalBlue.copy(alpha = 0.08f)),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(12.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text("Viewing Operations For:", fontSize = 11.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                                                    Text(currentHotel?.name ?: "No Hotel Selected", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = RoyalBlue)
+                                                }
+                                                TextButton(
+                                                    onClick = {
+                                                        val currentIndex = hotels.indexOfFirst { it.id == currentHotel?.id }
+                                                        val nextIndex = (currentIndex + 1) % hotels.size
+                                                        authViewModel.selectHotel(hotels[nextIndex].id)
+                                                    }
+                                                ) {
+                                                    Text("Switch Hotel Context", fontSize = 11.sp)
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Staff Join Code Card (Only visible to Owner / GM / Department Head)
+                                    if (userRole == "Owner" || userRole == "General Manager" || userRole == "Department Head") {
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5)), // Light emerald background
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.2f)),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(16.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(36.dp)
+                                                        .background(Color(0xFF10B981), shape = CircleShape),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Key,
+                                                        contentDescription = "Key Icon",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = "🔑 Staff Registration Join Code",
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 12.sp,
+                                                        color = Color(0xFF047857)
+                                                    )
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(
+                                                            text = currentHotel?.joinCode ?: "N/A",
+                                                            fontWeight = FontWeight.Black,
+                                                            fontSize = 18.sp,
+                                                            color = Color(0xFF065F46),
+                                                            letterSpacing = 1.sp
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Surface(
+                                                            color = Color(0xFFD1FAE5),
+                                                            shape = RoundedCornerShape(4.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = "ACTIVE",
+                                                                fontSize = 9.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = Color(0xFF065F46),
+                                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                    Text(
+                                                        text = "Give this code to your staff members so they can register under ${currentHotel?.name ?: "your hotel"}.",
+                                                        fontSize = 10.sp,
+                                                        color = Color.DarkGray,
+                                                        lineHeight = 14.sp
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Department Workspace Banner Card
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(containerColor = RoyalBlue.copy(alpha = 0.05f)),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, RoyalBlue.copy(alpha = 0.15f)),
+                                        shape = RoundedCornerShape(16.dp)
+                                    ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -539,6 +920,87 @@ fun DashboardScreen(
                 }
             }
         }
+    }
+    }
+    }
+    }
+
+    if (showAddHotelDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddHotelDialog = false },
+            title = { Text("Register New Hotel Tenant (Client)") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = newHotelName,
+                        onValueChange = { newHotelName = it },
+                        label = { Text("Hotel Name") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = newHotelOwnerName,
+                        onValueChange = { newHotelOwnerName = it },
+                        label = { Text("Owner Name") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = newHotelOwnerEmail,
+                        onValueChange = { newHotelOwnerEmail = it },
+                        label = { Text("Owner Email") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Select Subscription Plan:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("Basic", "Premium", "Enterprise").forEach { plan ->
+                            val isSel = newHotelPlan == plan
+                            OutlinedButton(
+                                onClick = { newHotelPlan = plan },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (isSel) RoyalBlue.copy(alpha = 0.08f) else Color.Transparent,
+                                    contentColor = if (isSel) RoyalBlue else Color.Gray
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isSel) RoyalBlue else Color.LightGray
+                                )
+                            ) {
+                                Text(plan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newHotelName.isNotBlank() && newHotelOwnerName.isNotBlank()) {
+                            authViewModel.registerNewHotel(newHotelName, newHotelOwnerName, newHotelOwnerEmail, newHotelPlan)
+                            showAddHotelDialog = false
+                            newHotelName = ""
+                            newHotelOwnerName = ""
+                            newHotelOwnerEmail = ""
+                            newHotelPlan = "Basic"
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue)
+                ) {
+                    Text("Register Hotel")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddHotelDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

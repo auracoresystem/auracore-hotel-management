@@ -17,12 +17,82 @@ sealed class AuthState {
     data class Error(val message: String) : AuthState()
 }
 
+data class HotelTenant(
+    val id: String,
+    val name: String,
+    val ownerName: String,
+    val ownerEmail: String,
+    val subscriptionPlan: String, // "Basic" (limit 10), "Premium" (limit 25), "Enterprise" (limit 100)
+    val status: String, // "Active", "Suspended"
+    val staffCount: Int,
+    val roomsCount: Int,
+    val subscriptionExpires: String = "Dec 31, 2026",
+    val joinCode: String = ""
+)
+
+val initialHotels = listOf(
+    HotelTenant(
+        id = "hotel_1",
+        name = "Aura Resort & Spa",
+        ownerName = "Aarav Sharma",
+        ownerEmail = "aarav@aura.com",
+        subscriptionPlan = "Premium",
+        status = "Active",
+        staffCount = 12,
+        roomsCount = 20,
+        subscriptionExpires = "2026-12-31",
+        joinCode = "AURA123"
+    ),
+    HotelTenant(
+        id = "hotel_2",
+        name = "Blue Lagoon Inn",
+        ownerName = "Neha Gupta",
+        ownerEmail = "neha@bluelagoon.com",
+        subscriptionPlan = "Basic",
+        status = "Active",
+        staffCount = 8,
+        roomsCount = 10,
+        subscriptionExpires = "2026-08-15",
+        joinCode = "BLUE123"
+    ),
+    HotelTenant(
+        id = "hotel_3",
+        name = "The Royal Suites",
+        ownerName = "Rajesh Kumar",
+        ownerEmail = "rajesh@royal.com",
+        subscriptionPlan = "Enterprise",
+        status = "Active",
+        staffCount = 48,
+        roomsCount = 80,
+        subscriptionExpires = "2027-01-01",
+        joinCode = "ROYAL123"
+    ),
+    HotelTenant(
+        id = "hotel_4",
+        name = "Grand Plaza Heights",
+        ownerName = "Sanjay Dutt",
+        ownerEmail = "sanjay@grandplaza.com",
+        subscriptionPlan = "Premium",
+        status = "Suspended",
+        staffCount = 15,
+        roomsCount = 25,
+        subscriptionExpires = "Expired (2026-06-01)",
+        joinCode = "GRAND123"
+    )
+)
+
 class AuthViewModel : ViewModel() {
     private val auth: FirebaseAuth? = try { FirebaseAuth.getInstance() } catch (e: Exception) { null }
     private val firestore: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
+
+    private val _hotels = MutableStateFlow<List<HotelTenant>>(initialHotels)
+    val hotels: StateFlow<List<HotelTenant>> = _hotels.asStateFlow()
+
+    private val _currentHotel = MutableStateFlow<HotelTenant?>(initialHotels[0])
+    val currentHotel: StateFlow<HotelTenant?> = _currentHotel.asStateFlow()
 
     init {
         checkCurrentUser()
@@ -39,11 +109,65 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    fun loginAsDemo(role: String) {
+    fun selectHotel(hotelId: String) {
+        val h = _hotels.value.find { it.id == hotelId }
+        _currentHotel.value = h
+    }
+
+    fun updateHotelStatus(hotelId: String, status: String) {
+        val updatedList = _hotels.value.map {
+            if (it.id == hotelId) it.copy(status = status) else it
+        }
+        _hotels.value = updatedList
+        if (_currentHotel.value?.id == hotelId) {
+            _currentHotel.value = updatedList.find { it.id == hotelId }
+        }
+    }
+
+    fun updateHotelPlan(hotelId: String, plan: String) {
+        val updatedList = _hotels.value.map {
+            if (it.id == hotelId) it.copy(subscriptionPlan = plan) else it
+        }
+        _hotels.value = updatedList
+        if (_currentHotel.value?.id == hotelId) {
+            _currentHotel.value = updatedList.find { it.id == hotelId }
+        }
+    }
+
+    fun registerNewHotel(hotelName: String, ownerName: String, ownerEmail: String, plan: String) {
+        val id = "hotel_" + System.currentTimeMillis().toString().takeLast(6)
+        val cleanName = hotelName.trim().filter { it.isLetterOrDigit() }.uppercase()
+        val prefix = if (cleanName.length >= 4) cleanName.take(4) else (cleanName + "HOTEL").take(4)
+        val generatedJoinCode = prefix + (100..999).random().toString()
+        val newHotel = HotelTenant(
+            id = id,
+            name = hotelName,
+            ownerName = ownerName,
+            ownerEmail = ownerEmail,
+            subscriptionPlan = plan,
+            status = "Active",
+            staffCount = 1,
+            roomsCount = 5,
+            subscriptionExpires = "2027-06-27",
+            joinCode = generatedJoinCode
+        )
+        val updatedList = _hotels.value.toMutableList()
+        updatedList.add(newHotel)
+        _hotels.value = updatedList
+        _currentHotel.value = newHotel
+    }
+
+    fun loginAsDemo(role: String, hotelId: String? = null) {
+        if (role == "AuraSuprime") {
+            _currentHotel.value = null
+        } else {
+            val hId = hotelId ?: _currentHotel.value?.id ?: "hotel_1"
+            selectHotel(hId)
+        }
         _authState.value = AuthState.Authenticated(role)
     }
 
-    fun login(email: String, password: String, rememberMe: Boolean) {
+    fun login(email: String, password: String, rememberMe: Boolean, hotelId: String? = null) {
         if (email.isBlank() || password.isBlank()) {
             _authState.value = AuthState.Error("Email and password cannot be empty.")
             return
@@ -58,6 +182,12 @@ class AuthViewModel : ViewModel() {
                 "gm@auracore.com" -> "General Manager"
                 "manager@auracore.com" -> "Department Head"
                 else -> if (lowerEmail.contains("supreme") || lowerEmail.contains("suprime")) "AuraSuprime" else "Staff"
+            }
+            if (role != "AuraSuprime") {
+                val hId = hotelId ?: "hotel_1"
+                selectHotel(hId)
+            } else {
+                _currentHotel.value = null
             }
             _authState.value = AuthState.Authenticated(role)
             return
@@ -81,19 +211,30 @@ class AuthViewModel : ViewModel() {
                     lowerEmail.contains("gm") || lowerEmail.contains("manager") -> "General Manager"
                     else -> "Owner" // Default to Owner so they get full access to test all features
                 }
+                if (fallbackRole != "AuraSuprime") {
+                    val hId = hotelId ?: "hotel_1"
+                    selectHotel(hId)
+                } else {
+                    _currentHotel.value = null
+                }
                 _authState.value = AuthState.Authenticated(fallbackRole)
             }
         }
     }
 
-    fun signUp(name: String, email: String, password: String, role: String) {
-        if (name.isBlank() || email.isBlank() || password.isBlank()) {
-            _authState.value = AuthState.Error("All fields are required.")
+    fun signUp(name: String, email: String, password: String, phone: String, role: String, hotelId: String? = null, newHotelName: String? = null) {
+        if (name.isBlank() || email.isBlank() || password.isBlank() || phone.isBlank()) {
+            _authState.value = AuthState.Error("All fields including mobile number are required.")
             return
         }
 
         _authState.value = AuthState.Loading
         viewModelScope.launch {
+            if (role == "Owner" && !newHotelName.isNullOrBlank()) {
+                registerNewHotel(newHotelName, name, email, "Basic")
+            } else if (!hotelId.isNullOrBlank()) {
+                selectHotel(hotelId)
+            }
             try {
                 val firebaseAuth = auth ?: throw Exception("Firebase is not initialized.")
                 val db = firestore ?: throw Exception("Firestore is not initialized.")
@@ -104,9 +245,11 @@ class AuthViewModel : ViewModel() {
                         "name" to name.trim(),
                         "email" to email.trim().lowercase(),
                         "role" to role,
-                        "phone" to "",
+                        "phone" to phone.trim(),
                         "department" to "",
-                        "employeeId" to "AC-${(1000..9999).random()}"
+                        "employeeId" to "AC-${(1000..9999).random()}",
+                        "hotelId" to (_currentHotel.value?.id ?: ""),
+                        "hotelName" to (_currentHotel.value?.name ?: "")
                     )
                     db.collection("users").document(uid).set(userProfile).await()
                     _authState.value = AuthState.Authenticated(role)

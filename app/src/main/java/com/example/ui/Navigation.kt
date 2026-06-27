@@ -81,6 +81,7 @@ fun AppNavigation(
                 else -> "Owner"
             }
             DashboardScreen(
+                authViewModel = authViewModel,
                 userRole = userRole,
                 onNavigateToKitchenWastage = {
                     navController.navigate(KitchenWastageRoute)

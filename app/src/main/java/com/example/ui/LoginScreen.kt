@@ -2,22 +2,29 @@ package com.example.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -32,6 +39,7 @@ fun LoginScreen(
     onNavigateToDashboard: (String) -> Unit
 ) {
     val authState by viewModel.authState.collectAsStateWithLifecycle()
+    val hotels by viewModel.hotels.collectAsStateWithLifecycle()
     var isLoginMode by remember { mutableStateOf(true) }
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("owner@auracore.com") }
@@ -39,6 +47,12 @@ fun LoginScreen(
     var selectedRole by remember { mutableStateOf("Owner") }
     var rememberMe by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
+    var hotelNameInput by remember { mutableStateOf("") }
+    var selectedHotelId by remember { mutableStateOf("hotel_1") }
+    var securityKey by remember { mutableStateOf("") }
+    var phoneInput by remember { mutableStateOf("") }
+    var joinCodeInput by remember { mutableStateOf("") }
+    var localErrorMsg by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(authState) {
         if (authState is AuthState.Authenticated) {
@@ -49,16 +63,16 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC)),
-        contentAlignment = Alignment.Center
+            .background(Color(0xFFF8FAFC))
+            .padding(8.dp),
+        contentAlignment = Alignment.TopCenter
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .padding(vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Card(
                 modifier = Modifier
@@ -121,9 +135,9 @@ fun LoginScreen(
                     }
                 }
 
-                if (authState is AuthState.Error) {
+                if (localErrorMsg != null || authState is AuthState.Error) {
                     Text(
-                        text = (authState as AuthState.Error).message,
+                        text = localErrorMsg ?: (authState as AuthState.Error).message,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
@@ -135,6 +149,18 @@ fun LoginScreen(
                         onValueChange = { name = it },
                         label = { Text("Full Name") },
                         leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedTextField(
+                        value = phoneInput,
+                        onValueChange = { phoneInput = it },
+                        label = { Text("Mobile Number (Mandatory)") },
+                        placeholder = { Text("e.g. +91 9876543210") },
+                        leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -168,8 +194,74 @@ fun LoginScreen(
                     singleLine = true
                 )
 
-                if (!isLoginMode) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Multi-Tenant Hotel Context Selector / Creator
+                if (isLoginMode) {
+                    if (selectedRole != "AuraSuprime") {
+                        Text(
+                            text = "Select Hotel to Login:",
+                            fontSize = 12.sp,
+                            color = RoyalBlue,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.align(Alignment.Start)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                            hotels.forEach { hotel ->
+                                val isSelected = selectedHotelId == hotel.id
+                                val isSuspended = hotel.status == "Suspended"
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { if (!isSuspended) selectedHotelId = hotel.id },
+                                    color = if (isSelected) RoyalBlue.copy(alpha = 0.08f) else Color.White,
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        width = if (isSelected) 1.5.dp else 1.dp,
+                                        color = if (isSelected) RoyalBlue else if (isSuspended) Color.Red.copy(alpha = 0.5f) else Color.LightGray
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = hotel.name,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 13.sp,
+                                                    color = if (isSuspended) Color.Gray else Color.Black
+                                                )
+                                                if (isSuspended) {
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Surface(
+                                                        color = Color.Red.copy(alpha = 0.10f),
+                                                        shape = RoundedCornerShape(4.dp)
+                                                    ) {
+                                                        Text("SUSPENDED", color = Color.Red, fontSize = 8.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                                    }
+                                                }
+                                            }
+                                            Text("Plan: ${hotel.subscriptionPlan} • Owner: ${hotel.ownerName}", fontSize = 11.sp, color = Color.Gray)
+                                        }
+                                        RadioButton(
+                                            selected = isSelected,
+                                            onClick = { if (!isSuspended) selectedHotelId = hotel.id },
+                                            colors = RadioButtonDefaults.colors(selectedColor = RoyalBlue),
+                                            enabled = !isSuspended
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                } else {
+                    // Registration Flow
+                    // 1. Role Selection Grid
                     Text(
                         text = "Select Your Role",
                         fontSize = 14.sp,
@@ -188,7 +280,10 @@ fun LoginScreen(
                                 rowRoles.forEach { role ->
                                     val isSelected = selectedRole == role
                                     OutlinedButton(
-                                        onClick = { selectedRole = role },
+                                        onClick = { 
+                                            selectedRole = role
+                                            localErrorMsg = null // clear error when switching
+                                        },
                                         modifier = Modifier.weight(1f),
                                         colors = ButtonDefaults.outlinedButtonColors(
                                             containerColor = if (isSelected) RoyalBlue.copy(alpha = 0.1f) else Color.Transparent,
@@ -204,6 +299,122 @@ fun LoginScreen(
                                 }
                             }
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // 2. Role Info Explanation Card
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = RoyalBlue.copy(alpha = 0.05f)),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                imageVector = if (selectedRole == "AuraSuprime") Icons.Default.Lock else Icons.Default.Info,
+                                contentDescription = null,
+                                tint = RoyalBlue,
+                                modifier = Modifier.size(20.dp).padding(top = 2.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Selected Role: $selectedRole",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = RoyalBlue
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = when (selectedRole) {
+                                        "AuraSuprime" -> "👑 Superuser (AuraCore Admin): Full system control across all hotel clients. Requires Master Security Key."
+                                        "Owner" -> "🏨 Hotel Owner (Tenant): Registers a new Hotel organization. Manages subscription, billing, rooms, and hotel staff."
+                                        "General Manager" -> "💼 General Manager (GM): Oversees all hotel staff, housekeeping, check-ins, tasks, and hotel analytics."
+                                        "Department Head" -> "👔 Department Head: Manages housekeeping supervisors, kitchen supervisors, and delegates daily tasks."
+                                        else -> "👥 Hotel Staff (${selectedRole}): Performs designated operational tasks (check-ins, cleanups, safety, food prep, repairs)."
+                                    },
+                                    fontSize = 11.sp,
+                                    color = Color.DarkGray,
+                                    lineHeight = 15.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // 3. Conditional Inputs based on Selected Role
+                    if (selectedRole == "AuraSuprime") {
+                        OutlinedTextField(
+                            value = securityKey,
+                            onValueChange = { 
+                                securityKey = it
+                                localErrorMsg = null
+                            },
+                            label = { Text("Superuser Master Security Key") },
+                            placeholder = { Text("Enter security key to register") },
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                            visualTransformation = PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    } else if (selectedRole == "Owner") {
+                        OutlinedTextField(
+                            value = hotelNameInput,
+                            onValueChange = { 
+                                hotelNameInput = it
+                                localErrorMsg = null
+                            },
+                            label = { Text("New Hotel Name") },
+                            placeholder = { Text("e.g. Grand Palace Resort") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    } else {
+                        // Staff Approval Warning
+                        Surface(
+                            color = Color(0xFFFEF3C7), // Amber-100 light warning
+                            shape = RoundedCornerShape(6.dp),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = Color(0xFFD97706),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Notice: Staff accounts require activation/approval from the Hotel Owner before logging in.",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFFB45309),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        OutlinedTextField(
+                            value = joinCodeInput,
+                            onValueChange = { 
+                                joinCodeInput = it
+                                localErrorMsg = null
+                            },
+                            label = { Text("Hotel Join Code (Mandatory)") },
+                            placeholder = { Text("Ask your Owner/GM for the code (e.g. AURA123)") },
+                            leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
 
@@ -234,9 +445,40 @@ fun LoginScreen(
                 Button(
                     onClick = { 
                         if (isLoginMode) {
-                            viewModel.login(email, password, rememberMe)
+                            viewModel.login(email, password, rememberMe, selectedHotelId)
                         } else {
-                            viewModel.signUp(name, email, password, selectedRole)
+                            if (name.isBlank() || email.isBlank() || password.isBlank()) {
+                                localErrorMsg = "All fields are required."
+                            } else if (phoneInput.trim().isBlank()) {
+                                localErrorMsg = "Mobile Number is mandatory for registration."
+                            } else if (selectedRole == "AuraSuprime") {
+                                if (securityKey.trim() != "SUPREME123" && securityKey.trim() != "AURASUPREME2026") {
+                                    localErrorMsg = "Access Denied: Invalid AuraCore Master Security Key."
+                                } else {
+                                    localErrorMsg = null
+                                    viewModel.signUp(name, email, password, phoneInput, selectedRole, null, null)
+                                }
+                            } else if (selectedRole == "Owner") {
+                                if (hotelNameInput.isBlank()) {
+                                    localErrorMsg = "Please enter your New Hotel Name."
+                                } else {
+                                    localErrorMsg = null
+                                    viewModel.signUp(name, email, password, phoneInput, selectedRole, null, hotelNameInput)
+                                }
+                            } else {
+                                // Staff / GM joining a hotel
+                                if (joinCodeInput.trim().isBlank()) {
+                                    localErrorMsg = "Hotel Join Code is mandatory."
+                                } else {
+                                    val matchedHotel = hotels.find { it.joinCode.trim().equals(joinCodeInput.trim(), ignoreCase = true) }
+                                    if (matchedHotel == null) {
+                                        localErrorMsg = "Invalid Hotel Join Code. Please ask your Hotel Owner or GM for the correct registration code."
+                                    } else {
+                                        localErrorMsg = null
+                                        viewModel.signUp(name, email, password, phoneInput, selectedRole, matchedHotel.id, null)
+                                    }
+                                }
+                            }
                         }
                     },
                     modifier = Modifier
@@ -302,7 +544,7 @@ fun LoginScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = { viewModel.loginAsDemo("Owner") },
+                        onClick = { viewModel.loginAsDemo("Owner", selectedHotelId) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)), // Red
                         shape = RoundedCornerShape(6.dp),
@@ -311,7 +553,7 @@ fun LoginScreen(
                         Text("Owner", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                     Button(
-                        onClick = { viewModel.loginAsDemo("General Manager") },
+                        onClick = { viewModel.loginAsDemo("General Manager", selectedHotelId) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)), // Blue
                         shape = RoundedCornerShape(6.dp),
@@ -320,7 +562,7 @@ fun LoginScreen(
                         Text("GM", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                     Button(
-                        onClick = { viewModel.loginAsDemo("Department Head") },
+                        onClick = { viewModel.loginAsDemo("Department Head", selectedHotelId) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)), // Green
                         shape = RoundedCornerShape(6.dp),
@@ -340,7 +582,7 @@ fun LoginScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = { viewModel.loginAsDemo("Receptionist") },
+                        onClick = { viewModel.loginAsDemo("Receptionist", selectedHotelId) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)), // Indigo
                         shape = RoundedCornerShape(6.dp),
@@ -349,7 +591,7 @@ fun LoginScreen(
                         Text("Receptionist", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                     Button(
-                        onClick = { viewModel.loginAsDemo("Housekeeping") },
+                        onClick = { viewModel.loginAsDemo("Housekeeping", selectedHotelId) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)), // Amber
                         shape = RoundedCornerShape(6.dp),
@@ -364,7 +606,7 @@ fun LoginScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = { viewModel.loginAsDemo("Security") },
+                        onClick = { viewModel.loginAsDemo("Security", selectedHotelId) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF64748B)), // Slate
                         shape = RoundedCornerShape(6.dp),
@@ -373,7 +615,7 @@ fun LoginScreen(
                         Text("Security", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                     Button(
-                        onClick = { viewModel.loginAsDemo("Kitchen Staff") },
+                        onClick = { viewModel.loginAsDemo("Kitchen Staff", selectedHotelId) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEC4899)), // Pink
                         shape = RoundedCornerShape(6.dp),
@@ -382,7 +624,7 @@ fun LoginScreen(
                         Text("Kitchen", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                     Button(
-                        onClick = { viewModel.loginAsDemo("Maintenance") },
+                        onClick = { viewModel.loginAsDemo("Maintenance", selectedHotelId) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF14B8A6)), // Teal
                         shape = RoundedCornerShape(6.dp),
