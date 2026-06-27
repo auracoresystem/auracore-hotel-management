@@ -1,6 +1,8 @@
 package com.example.ui
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -9,6 +11,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import org.json.JSONArray
+import org.json.JSONObject
 
 sealed class AuthState {
     object Idle : AuthState()
@@ -99,35 +103,98 @@ data class RegisteredUser(
     val password: String = "12345"
 )
 
-class AuthViewModel : ViewModel() {
+class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val auth: FirebaseAuth? = try { FirebaseAuth.getInstance() } catch (e: Exception) { null }
     private val firestore: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
 
-    private val _registeredUsers = MutableStateFlow<List<RegisteredUser>>(listOf(
-        RegisteredUser("u_1", "Rohan Sharma", "rohan@gmail.com", "+91 9876543210", "Receptionist", "hotel_1", "Aura Resort & Spa", "Pending", "AURA-REC-101", "12345"),
-        RegisteredUser("u_2", "Sanjana Patel", "sanjana@gmail.com", "+91 8765432109", "Housekeeping", "hotel_1", "Aura Resort & Spa", "Pending", "AURA-HK-102", "12345"),
-        RegisteredUser("u_3", "Amit Kumar", "amit@gmail.com", "+91 7654321098", "General Manager", "hotel_1", "Aura Resort & Spa", "Approved", "AURA-GM-103", "12345"),
-        RegisteredUser("u_4", "Karan Singh", "karan@gmail.com", "+91 9555123456", "Kitchen Staff", "hotel_2", "Blue Lagoon Inn", "Pending", "BLUE-KIT-101", "12345")
-    ))
-    val registeredUsers: StateFlow<List<RegisteredUser>> = _registeredUsers.asStateFlow()
+    private val sharedPrefs = application.getSharedPreferences("aura_auth_prefs", Context.MODE_PRIVATE)
 
-    fun approveUser(userId: String) {
-        _registeredUsers.value = _registeredUsers.value.map {
-            if (it.id == userId) it.copy(status = "Approved") else it
+    private fun saveUsersToPrefs(users: List<RegisteredUser>) {
+        try {
+            val jsonArray = JSONArray()
+            users.forEach { user ->
+                val jsonObject = JSONObject().apply {
+                    put("id", user.id)
+                    put("name", user.name)
+                    put("email", user.email)
+                    put("phone", user.phone)
+                    put("role", user.role)
+                    put("hotelId", user.hotelId)
+                    put("hotelName", user.hotelName)
+                    put("status", user.status)
+                    put("staffId", user.staffId)
+                    put("password", user.password)
+                }
+                jsonArray.put(jsonObject)
+            }
+            sharedPrefs.edit().putString("registered_users", jsonArray.toString()).apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
+    private fun loadUsersFromPrefs(): List<RegisteredUser> {
+        val usersJson = sharedPrefs.getString("registered_users", null)
+        if (usersJson == null) {
+            return listOf(
+                RegisteredUser("u_1", "Rohan Sharma", "rohan@gmail.com", "+91 9876543210", "Receptionist", "hotel_1", "Aura Resort & Spa", "Pending", "AURA-REC-101", "12345"),
+                RegisteredUser("u_2", "Sanjana Patel", "sanjana@gmail.com", "+91 8765432109", "Housekeeping", "hotel_1", "Aura Resort & Spa", "Pending", "AURA-HK-102", "12345"),
+                RegisteredUser("u_3", "Amit Kumar", "amit@gmail.com", "+91 7654321098", "General Manager", "hotel_1", "Aura Resort & Spa", "Approved", "AURA-GM-103", "12345"),
+                RegisteredUser("u_4", "Karan Singh", "karan@gmail.com", "+91 9555123456", "Kitchen Staff", "hotel_2", "Blue Lagoon Inn", "Pending", "BLUE-KIT-101", "12345")
+            )
+        }
+        val list = mutableListOf<RegisteredUser>()
+        try {
+            val jsonArray = JSONArray(usersJson)
+            for (i in 0 until jsonArray.length()) {
+                val jsonObject = jsonArray.getJSONObject(i)
+                list.add(
+                    RegisteredUser(
+                        id = jsonObject.getString("id"),
+                        name = jsonObject.getString("name"),
+                        email = jsonObject.getString("email"),
+                        phone = jsonObject.getString("phone"),
+                        role = jsonObject.getString("role"),
+                        hotelId = jsonObject.getString("hotelId"),
+                        hotelName = jsonObject.getString("hotelName"),
+                        status = jsonObject.optString("status", "Pending"),
+                        staffId = jsonObject.optString("staffId", ""),
+                        password = jsonObject.optString("password", "12345")
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return list
+    }
+
+    private val _registeredUsers = MutableStateFlow<List<RegisteredUser>>(loadUsersFromPrefs())
+    val registeredUsers: StateFlow<List<RegisteredUser>> = _registeredUsers.asStateFlow()
+
+    fun approveUser(userId: String) {
+        val updated = _registeredUsers.value.map {
+            if (it.id == userId) it.copy(status = "Approved") else it
+        }
+        _registeredUsers.value = updated
+        saveUsersToPrefs(updated)
+    }
+
     fun rejectUser(userId: String) {
-        _registeredUsers.value = _registeredUsers.value.map {
+        val updated = _registeredUsers.value.map {
             if (it.id == userId) it.copy(status = "Rejected") else it
         }
+        _registeredUsers.value = updated
+        saveUsersToPrefs(updated)
     }
 
     fun changeUserPassword(userId: String, newPassword: String): Boolean {
         if (newPassword.isBlank() || newPassword.length < 4) return false
-        _registeredUsers.value = _registeredUsers.value.map {
+        val updated = _registeredUsers.value.map {
             if (it.id == userId) it.copy(password = newPassword) else it
         }
+        _registeredUsers.value = updated
+        saveUsersToPrefs(updated)
         return true
     }
 
@@ -361,6 +428,7 @@ class AuthViewModel : ViewModel() {
             val updatedUsers = _registeredUsers.value.toMutableList()
             updatedUsers.add(newUser)
             _registeredUsers.value = updatedUsers
+            saveUsersToPrefs(updatedUsers)
 
             if (!isOwnerOrSupreme) {
                 // Return registration pending so they see the notice on screen
