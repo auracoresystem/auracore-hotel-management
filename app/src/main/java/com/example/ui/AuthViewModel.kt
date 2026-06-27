@@ -27,7 +27,8 @@ data class HotelTenant(
     val staffCount: Int,
     val roomsCount: Int,
     val subscriptionExpires: String = "Dec 31, 2026",
-    val joinCode: String = ""
+    val joinCode: String = "",
+    val hotelCode: String = ""
 )
 
 val initialHotels = listOf(
@@ -41,7 +42,8 @@ val initialHotels = listOf(
         staffCount = 12,
         roomsCount = 20,
         subscriptionExpires = "2026-12-31",
-        joinCode = "AURA123"
+        joinCode = "AURA123",
+        hotelCode = "AURA"
     ),
     HotelTenant(
         id = "hotel_2",
@@ -53,7 +55,8 @@ val initialHotels = listOf(
         staffCount = 8,
         roomsCount = 10,
         subscriptionExpires = "2026-08-15",
-        joinCode = "BLUE123"
+        joinCode = "BLUE123",
+        hotelCode = "BLUE"
     ),
     HotelTenant(
         id = "hotel_3",
@@ -65,7 +68,8 @@ val initialHotels = listOf(
         staffCount = 48,
         roomsCount = 80,
         subscriptionExpires = "2027-01-01",
-        joinCode = "ROYAL123"
+        joinCode = "ROYAL123",
+        hotelCode = "ROYA"
     ),
     HotelTenant(
         id = "hotel_4",
@@ -77,7 +81,8 @@ val initialHotels = listOf(
         staffCount = 15,
         roomsCount = 25,
         subscriptionExpires = "Expired (2026-06-01)",
-        joinCode = "GRAND123"
+        joinCode = "GRAND123",
+        hotelCode = "GRAN"
     )
 )
 
@@ -89,7 +94,9 @@ data class RegisteredUser(
     val role: String,
     val hotelId: String,
     val hotelName: String,
-    val status: String = "Pending" // "Pending", "Approved", "Rejected"
+    val status: String = "Pending", // "Pending", "Approved", "Rejected"
+    val staffId: String = "",
+    val password: String = "12345"
 )
 
 class AuthViewModel : ViewModel() {
@@ -97,10 +104,10 @@ class AuthViewModel : ViewModel() {
     private val firestore: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
 
     private val _registeredUsers = MutableStateFlow<List<RegisteredUser>>(listOf(
-        RegisteredUser("u_1", "Rohan Sharma", "rohan@gmail.com", "+91 9876543210", "Receptionist", "hotel_1", "Aura Core Resort", "Pending"),
-        RegisteredUser("u_2", "Sanjana Patel", "sanjana@gmail.com", "+91 8765432109", "Housekeeping", "hotel_1", "Aura Core Resort", "Pending"),
-        RegisteredUser("u_3", "Amit Kumar", "amit@gmail.com", "+91 7654321098", "General Manager", "hotel_1", "Aura Core Resort", "Approved"),
-        RegisteredUser("u_4", "Karan Singh", "karan@gmail.com", "+91 9555123456", "Kitchen Staff", "hotel_2", "The Blue Lagoon", "Pending")
+        RegisteredUser("u_1", "Rohan Sharma", "rohan@gmail.com", "+91 9876543210", "Receptionist", "hotel_1", "Aura Resort & Spa", "Pending", "AURA-REC-101", "12345"),
+        RegisteredUser("u_2", "Sanjana Patel", "sanjana@gmail.com", "+91 8765432109", "Housekeeping", "hotel_1", "Aura Resort & Spa", "Pending", "AURA-HK-102", "12345"),
+        RegisteredUser("u_3", "Amit Kumar", "amit@gmail.com", "+91 7654321098", "General Manager", "hotel_1", "Aura Resort & Spa", "Approved", "AURA-GM-103", "12345"),
+        RegisteredUser("u_4", "Karan Singh", "karan@gmail.com", "+91 9555123456", "Kitchen Staff", "hotel_2", "Blue Lagoon Inn", "Pending", "BLUE-KIT-101", "12345")
     ))
     val registeredUsers: StateFlow<List<RegisteredUser>> = _registeredUsers.asStateFlow()
 
@@ -114,6 +121,14 @@ class AuthViewModel : ViewModel() {
         _registeredUsers.value = _registeredUsers.value.map {
             if (it.id == userId) it.copy(status = "Rejected") else it
         }
+    }
+
+    fun changeUserPassword(userId: String, newPassword: String): Boolean {
+        if (newPassword.isBlank() || newPassword.length < 4) return false
+        _registeredUsers.value = _registeredUsers.value.map {
+            if (it.id == userId) it.copy(password = newPassword) else it
+        }
+        return true
     }
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
@@ -167,9 +182,9 @@ class AuthViewModel : ViewModel() {
 
     fun registerNewHotel(hotelName: String, ownerName: String, ownerEmail: String, plan: String) {
         val id = "hotel_" + System.currentTimeMillis().toString().takeLast(6)
-        val cleanName = hotelName.trim().filter { it.isLetterOrDigit() }.uppercase()
-        val prefix = if (cleanName.length >= 4) cleanName.take(4) else (cleanName + "HOTEL").take(4)
-        val generatedJoinCode = prefix + (100..999).random().toString()
+        val cleanName = hotelName.trim().filter { it.isLetter() }.uppercase()
+        val hCode = if (cleanName.length >= 4) cleanName.take(4) else (cleanName + "HOTEL").take(4)
+        val generatedJoinCode = hCode + (100..999).random().toString()
         val newHotel = HotelTenant(
             id = id,
             name = hotelName,
@@ -180,7 +195,8 @@ class AuthViewModel : ViewModel() {
             staffCount = 1,
             roomsCount = 5,
             subscriptionExpires = "2027-06-27",
-            joinCode = generatedJoinCode
+            joinCode = generatedJoinCode,
+            hotelCode = hCode
         )
         val updatedList = _hotels.value.toMutableList()
         updatedList.add(newHotel)
@@ -198,26 +214,35 @@ class AuthViewModel : ViewModel() {
         _authState.value = AuthState.Authenticated(role)
     }
 
-    fun login(email: String, password: String, rememberMe: Boolean, hotelId: String? = null) {
-        if (email.isBlank() || password.isBlank()) {
-            _authState.value = AuthState.Error("Email and password cannot be empty.")
+    fun login(identifier: String, password: String, rememberMe: Boolean, hotelId: String? = null) {
+        if (identifier.isBlank() || password.isBlank()) {
+            _authState.value = AuthState.Error("ID/Email and password cannot be empty.")
             return
         }
 
-        val lowerEmail = email.trim().lowercase()
+        val cleanId = identifier.trim().lowercase()
 
-        // Check registration approval status
-        val matchedUser = _registeredUsers.value.find { it.email.trim().lowercase() == lowerEmail }
+        // Search in registered users by email OR by unique Staff ID
+        val matchedUser = _registeredUsers.value.find { 
+            it.email.trim().lowercase() == cleanId || it.staffId.trim().lowercase() == cleanId 
+        }
+
         if (matchedUser != null) {
+            // Verify Password
+            if (matchedUser.password != password) {
+                _authState.value = AuthState.Error("Galat password! Kripya sahi password enter karein.")
+                return
+            }
+
             if (matchedUser.status == "Pending") {
-                _authState.value = AuthState.Error("Aapka account abhi pending hai! Kripya apne Hotel Owner ya GM se contact karein aur isse approve karwayein.")
+                _authState.value = AuthState.Error("Aapka account abhi pending hai! Kripya apne Hotel Owner ya GM se contact karein aur isse approve karwayein. Aapka Unique Staff ID hai: ${matchedUser.staffId}")
                 return
             } else if (matchedUser.status == "Rejected") {
                 _authState.value = AuthState.Error("Aapka registration request Hotel Owner dwara reject kar diya gaya hai. Kripya naye details se apply karein.")
                 return
             }
 
-            // If approved, log in with their correct registered hotel and role
+            // Log in successfully
             val role = matchedUser.role
             if (role != "AuraSuprime") {
                 selectHotel(matchedUser.hotelId)
@@ -228,14 +253,14 @@ class AuthViewModel : ViewModel() {
             return
         }
 
-        // If they enter demo credentials, log them in instantly
-        if (lowerEmail == "aurasuprime@auracore.com" || lowerEmail == "owner@auracore.com" || lowerEmail == "gm@auracore.com" || lowerEmail == "manager@auracore.com" || lowerEmail == "staff@auracore.com" || password == "admin123" || password == "demo123" || password == "supreme123") {
-            val role = when (lowerEmail) {
+        // Check default demo accounts
+        if (cleanId == "aurasuprime@auracore.com" || cleanId == "owner@auracore.com" || cleanId == "gm@auracore.com" || cleanId == "manager@auracore.com" || cleanId == "staff@auracore.com" || password == "admin123" || password == "demo123" || password == "supreme123") {
+            val role = when (cleanId) {
                 "aurasuprime@auracore.com" -> "AuraSuprime"
                 "owner@auracore.com" -> "Owner"
                 "gm@auracore.com" -> "General Manager"
                 "manager@auracore.com" -> "Department Head"
-                else -> if (lowerEmail.contains("supreme") || lowerEmail.contains("suprime")) "AuraSuprime" else "Staff"
+                else -> if (cleanId.contains("supreme") || cleanId.contains("suprime")) "AuraSuprime" else "Staff"
             }
             if (role != "AuraSuprime") {
                 val hId = hotelId ?: "hotel_1"
@@ -251,19 +276,19 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val firebaseAuth = auth ?: throw Exception("Firebase is not initialized.")
-                val result = firebaseAuth.signInWithEmailAndPassword(email, password).await()
+                val result = firebaseAuth.signInWithEmailAndPassword(identifier, password).await()
                 result.user?.uid?.let { uid ->
                     fetchUserRole(uid)
                 } ?: run {
                     _authState.value = AuthState.Error("Failed to get user data.")
                 }
             } catch (e: Exception) {
-                // Auto-fallback so the user is never blocked by a missing or invalid Firebase API Key!
+                // Auto-fallback so testing or offline login is never blocked
                 val fallbackRole = when {
-                    lowerEmail.contains("supreme") || lowerEmail.contains("suprime") -> "AuraSuprime"
-                    lowerEmail.contains("owner") -> "Owner"
-                    lowerEmail.contains("gm") || lowerEmail.contains("manager") -> "General Manager"
-                    else -> "Owner" // Default to Owner so they get full access to test all features
+                    cleanId.contains("supreme") || cleanId.contains("suprime") -> "AuraSuprime"
+                    cleanId.contains("owner") -> "Owner"
+                    cleanId.contains("gm") || cleanId.contains("manager") -> "General Manager"
+                    else -> "Owner" // Default to Owner so they get full operations access
                 }
                 if (fallbackRole != "AuraSuprime") {
                     val hId = hotelId ?: "hotel_1"
@@ -273,6 +298,21 @@ class AuthViewModel : ViewModel() {
                 }
                 _authState.value = AuthState.Authenticated(fallbackRole)
             }
+        }
+    }
+
+    private fun getRoleShortcode(role: String): String {
+        return when (role) {
+            "Owner" -> "OWN"
+            "General Manager" -> "GM"
+            "Department Head" -> "DH"
+            "Receptionist" -> "REC"
+            "Housekeeping" -> "HK"
+            "Security" -> "SEC"
+            "Kitchen Staff" -> "KIT"
+            "Maintenance" -> "MNT"
+            "AuraSuprime" -> "SUP"
+            else -> "STF"
         }
     }
 
@@ -291,7 +331,16 @@ class AuthViewModel : ViewModel() {
             }
 
             val hId = hotelId ?: _currentHotel.value?.id ?: "hotel_1"
-            val hName = _hotels.value.find { it.id == hId }?.name ?: "Hotel"
+            val matchedHotel = _hotels.value.find { it.id == hId }
+            val hName = matchedHotel?.name ?: "Hotel"
+            val hCode = matchedHotel?.hotelCode ?: "HOTE"
+            val roleShort = getRoleShortcode(role)
+            
+            // Generate Serial Number (101 + existing users count for this hotel)
+            val hotelUsersCount = _registeredUsers.value.filter { it.hotelId == hId }.size
+            val serial = 101 + hotelUsersCount
+            val generatedStaffId = "$hCode-$roleShort-$serial"
+
             val isOwnerOrSupreme = role == "Owner" || role == "AuraSuprime"
             val initialStatus = if (isOwnerOrSupreme) "Approved" else "Pending"
 
@@ -303,7 +352,9 @@ class AuthViewModel : ViewModel() {
                 role = role,
                 hotelId = hId,
                 hotelName = hName,
-                status = initialStatus
+                status = initialStatus,
+                staffId = generatedStaffId,
+                password = password
             )
 
             // Add to the registered list
@@ -313,7 +364,7 @@ class AuthViewModel : ViewModel() {
 
             if (!isOwnerOrSupreme) {
                 // Return registration pending so they see the notice on screen
-                _authState.value = AuthState.Error("REGISTRATION_PENDING_APPROVAL: Aapka registration safaltapoorvak (successfully) ho gaya hai! Lekin login karne ke liye Hotel Owner ke approval ki zaroorat hai. Kripya apne Owner ya GM se contact karein aur apna Mobile Number unhe batayein.")
+                _authState.value = AuthState.Error("REGISTRATION_PENDING_APPROVAL: पंजीकरण सफल (Registration Successful)!\n\nआपका Unique Staff ID है: **$generatedStaffId**\n\nकृपया इसे नोट कर लें या स्क्रीनशॉट ले लें। ओनर के अप्रूवल के बाद आप इस ID ($generatedStaffId) और अपने पासवर्ड से सीधे लॉगिन कर सकेंगे।")
                 return@launch
             }
 
@@ -329,7 +380,7 @@ class AuthViewModel : ViewModel() {
                         "role" to role,
                         "phone" to phone.trim(),
                         "department" to "",
-                        "employeeId" to "AC-${(1000..9999).random()}",
+                        "employeeId" to generatedStaffId,
                         "hotelId" to hId,
                         "hotelName" to hName
                     )

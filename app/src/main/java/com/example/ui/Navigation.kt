@@ -146,10 +146,10 @@ fun AppNavigation(
             ReportsScreen(viewModel = reportsViewModel, onBackClick = { navController.popBackStack() })
         }
         composable<ProfileRoute> {
-            ProfileScreen(viewModel = profileViewModel, onBackClick = { navController.popBackStack() })
+            ProfileScreen(viewModel = profileViewModel, authViewModel = authViewModel, onBackClick = { navController.popBackStack() })
         }
         composable<HrRoute> {
-            HrScreen(viewModel = hrViewModel, onBackClick = { navController.popBackStack() })
+            HrScreen(viewModel = hrViewModel, authViewModel = authViewModel, onBackClick = { navController.popBackStack() })
         }
         composable<LaundryRoute> {
             LaundryScreen(viewModel = laundryViewModel, onBackClick = { navController.popBackStack() })

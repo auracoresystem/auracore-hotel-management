@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -165,45 +166,104 @@ fun LoginScreen(
                 val rawMessage = localErrorMsg ?: (if (authState is AuthState.Error) (authState as AuthState.Error).message else null)
                 if (rawMessage != null) {
                     if (rawMessage.startsWith("REGISTRATION_PENDING_APPROVAL: ")) {
-                        val cleanMsg = rawMessage.substringAfter("REGISTRATION_PENDING_APPROVAL: ")
+                        val cleanMsg = rawMessage.substringAfter("REGISTRATION_PENDING_APPROVAL: ").replace("**", "")
+                        val staffIdReg = Regex("([A-Z0-9]+-[A-Z0-9]+-[0-9]+)")
+                        val staffId = staffIdReg.find(rawMessage)?.value ?: ""
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(bottom = 16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5)), // Light emerald
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981)),
-                            shape = RoundedCornerShape(12.dp)
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)), // Light green 50
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF22C55E)), // Green 500
+                            shape = RoundedCornerShape(16.dp)
                         ) {
-                            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(28.dp)
-                                        .background(Color(0xFF10B981), shape = CircleShape)
-                                        .padding(4.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Success",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .background(Color(0xFF22C55E), shape = CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Success",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
                                     Text(
-                                        text = "Success! Approval Pending",
+                                        text = "पंजीकरण सफल! (Registration Successful)",
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF047857),
+                                        color = Color(0xFF15803D),
                                         fontSize = 13.sp
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = cleanMsg,
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF065F46),
-                                        lineHeight = 15.sp
-                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.height(12.dp))
+                                
+                                if (staffId.isNotEmpty()) {
+                                    Surface(
+                                        color = Color(0xFFDCFCE7), // Green 100
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF86EFAC)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(12.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column {
+                                                Text(
+                                                    text = "YOUR UNIQUE STAFF ID:",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF166534)
+                                                )
+                                                Text(
+                                                    text = staffId,
+                                                    fontSize = 18.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = Color(0xFF14532D),
+                                                    letterSpacing = 1.sp
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                                    val clip = android.content.ClipData.newPlainText("Staff ID", staffId)
+                                                    clipboard.setPrimaryClip(clip)
+                                                    android.widget.Toast.makeText(context, "Staff ID Copied!", android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ContentCopy,
+                                                    contentDescription = "Copy ID",
+                                                    tint = Color(0xFF166534)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                }
+                                
+                                Text(
+                                    text = cleanMsg,
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF166534),
+                                    lineHeight = 15.sp
+                                )
+                                
+                                Spacer(modifier = Modifier.height(8.dp))
+                                TextButton(
+                                    onClick = { isLoginMode = true },
+                                    modifier = Modifier.align(Alignment.End)
+                                ) {
+                                    Text("Go to Login (लॉगिन करें)", fontWeight = FontWeight.Bold, color = Color(0xFF15803D))
                                 }
                             }
                         }
@@ -259,12 +319,12 @@ fun LoginScreen(
                         emailError = false
                         localErrorMsg = null
                     },
-                    label = { Text("Email") },
+                    label = { Text(if (isLoginMode) "Staff ID or Email" else "Email") },
                     leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     isError = emailError,
-                    supportingText = if (emailError) { { Text("Please enter a valid email", color = MaterialTheme.colorScheme.error) } } else null
+                    supportingText = if (emailError) { { Text(if (isLoginMode) "Please enter a valid Staff ID or Email" else "Please enter a valid email", color = MaterialTheme.colorScheme.error) } } else null
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
