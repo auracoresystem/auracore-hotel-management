@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -135,12 +137,58 @@ fun LoginScreen(
                     }
                 }
 
-                if (localErrorMsg != null || authState is AuthState.Error) {
-                    Text(
-                        text = localErrorMsg ?: (authState as AuthState.Error).message,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
+                val rawMessage = localErrorMsg ?: (if (authState is AuthState.Error) (authState as AuthState.Error).message else null)
+                if (rawMessage != null) {
+                    if (rawMessage.startsWith("REGISTRATION_PENDING_APPROVAL: ")) {
+                        val cleanMsg = rawMessage.substringAfter("REGISTRATION_PENDING_APPROVAL: ")
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5)), // Light emerald
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .background(Color(0xFF10B981), shape = CircleShape)
+                                        .padding(4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Success",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Success! Approval Pending",
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF047857),
+                                        fontSize = 13.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = cleanMsg,
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF065F46),
+                                        lineHeight = 15.sp
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = rawMessage,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    }
                 }
 
                 if (!isLoginMode) {

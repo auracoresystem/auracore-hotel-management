@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -93,6 +94,10 @@ fun DashboardScreen(
     
     val currentHotel by authViewModel.currentHotel.collectAsStateWithLifecycle()
     val hotels by authViewModel.hotels.collectAsStateWithLifecycle()
+    val registeredUsers by authViewModel.registeredUsers.collectAsStateWithLifecycle()
+    val pendingApprovals = remember(registeredUsers, currentHotel) {
+        registeredUsers.filter { it.hotelId == (currentHotel?.id ?: "") && it.status == "Pending" }
+    }
 
     var showAddHotelDialog by remember { mutableStateOf(false) }
     var newHotelName by remember { mutableStateOf("") }
@@ -546,6 +551,127 @@ fun DashboardScreen(
                                                     }
                                                 ) {
                                                     Text("Switch Hotel Context", fontSize = 11.sp)
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Pending Approvals Alert Section (Only visible to Owner / GM / Department Head)
+                                    if ((userRole == "Owner" || userRole == "General Manager" || userRole == "Department Head") && pendingApprovals.isNotEmpty()) {
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB)), // Light Amber background
+                                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFF59E0B)),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Column(modifier = Modifier.padding(16.dp)) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Warning,
+                                                        contentDescription = "Warning",
+                                                        tint = Color(0xFFD97706),
+                                                        modifier = Modifier.size(22.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text(
+                                                        text = "🚨 Naye Staff Approvals Pending (${pendingApprovals.size})",
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 14.sp,
+                                                        color = Color(0xFF92400E)
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = "Kuch staff members ne join code use karke register kiya hai. Jab tak aap inhe approve nahi karenge, ye login nahi kar payenge:",
+                                                    fontSize = 11.sp,
+                                                    color = Color(0xFF78350F),
+                                                    lineHeight = 15.sp
+                                                )
+                                                Spacer(modifier = Modifier.height(12.dp))
+
+                                                pendingApprovals.forEach { pending ->
+                                                    Card(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(vertical = 4.dp),
+                                                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f)),
+                                                        shape = RoundedCornerShape(8.dp)
+                                                    ) {
+                                                        Column(modifier = Modifier.padding(12.dp)) {
+                                                            Row(
+                                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                modifier = Modifier.fillMaxWidth()
+                                                            ) {
+                                                                Column(modifier = Modifier.weight(1f)) {
+                                                                    Text(
+                                                                        text = pending.name,
+                                                                        fontWeight = FontWeight.Bold,
+                                                                        fontSize = 14.sp,
+                                                                        color = Color.Black
+                                                                    )
+                                                                    Text(
+                                                                        text = "Role: ${pending.role}",
+                                                                        fontWeight = FontWeight.Medium,
+                                                                        fontSize = 12.sp,
+                                                                        color = RoyalBlue
+                                                                    )
+                                                                }
+                                                                Surface(
+                                                                    color = Color(0xFFFEF3C7),
+                                                                    shape = RoundedCornerShape(4.dp)
+                                                                ) {
+                                                                    Text(
+                                                                        text = "PENDING",
+                                                                        fontSize = 9.sp,
+                                                                        fontWeight = FontWeight.Bold,
+                                                                        color = Color(0xFFD97706),
+                                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                    )
+                                                                }
+                                                            }
+                                                            Spacer(modifier = Modifier.height(6.dp))
+                                                            Text(
+                                                                text = "📞 Mobile: ${pending.phone} (Mandatory)",
+                                                                fontSize = 11.sp,
+                                                                color = Color.DarkGray
+                                                            )
+                                                            Text(
+                                                                text = "✉️ Email: ${pending.email}",
+                                                                fontSize = 11.sp,
+                                                                color = Color.DarkGray
+                                                            )
+                                                            Spacer(modifier = Modifier.height(8.dp))
+                                                            Row(
+                                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                                modifier = Modifier.fillMaxWidth()
+                                                            ) {
+                                                                Button(
+                                                                    onClick = { authViewModel.approveUser(pending.id) },
+                                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                                                    shape = RoundedCornerShape(6.dp),
+                                                                    modifier = Modifier.weight(1f),
+                                                                    contentPadding = PaddingValues(vertical = 4.dp)
+                                                                ) {
+                                                                    Text("Approve (Manzoor)", fontSize = 11.sp, color = Color.White)
+                                                                }
+                                                                OutlinedButton(
+                                                                    onClick = { authViewModel.rejectUser(pending.id) },
+                                                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
+                                                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDC2626)),
+                                                                    shape = RoundedCornerShape(6.dp),
+                                                                    modifier = Modifier.weight(1f),
+                                                                    contentPadding = PaddingValues(vertical = 4.dp)
+                                                                ) {
+                                                                    Text("Reject (Khaarij)", fontSize = 11.sp)
+                                                                }
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }

@@ -81,9 +81,40 @@ val initialHotels = listOf(
     )
 )
 
+data class RegisteredUser(
+    val id: String,
+    val name: String,
+    val email: String,
+    val phone: String,
+    val role: String,
+    val hotelId: String,
+    val hotelName: String,
+    val status: String = "Pending" // "Pending", "Approved", "Rejected"
+)
+
 class AuthViewModel : ViewModel() {
     private val auth: FirebaseAuth? = try { FirebaseAuth.getInstance() } catch (e: Exception) { null }
     private val firestore: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
+
+    private val _registeredUsers = MutableStateFlow<List<RegisteredUser>>(listOf(
+        RegisteredUser("u_1", "Rohan Sharma", "rohan@gmail.com", "+91 9876543210", "Receptionist", "hotel_1", "Aura Core Resort", "Pending"),
+        RegisteredUser("u_2", "Sanjana Patel", "sanjana@gmail.com", "+91 8765432109", "Housekeeping", "hotel_1", "Aura Core Resort", "Pending"),
+        RegisteredUser("u_3", "Amit Kumar", "amit@gmail.com", "+91 7654321098", "General Manager", "hotel_1", "Aura Core Resort", "Approved"),
+        RegisteredUser("u_4", "Karan Singh", "karan@gmail.com", "+91 9555123456", "Kitchen Staff", "hotel_2", "The Blue Lagoon", "Pending")
+    ))
+    val registeredUsers: StateFlow<List<RegisteredUser>> = _registeredUsers.asStateFlow()
+
+    fun approveUser(userId: String) {
+        _registeredUsers.value = _registeredUsers.value.map {
+            if (it.id == userId) it.copy(status = "Approved") else it
+        }
+    }
+
+    fun rejectUser(userId: String) {
+        _registeredUsers.value = _registeredUsers.value.map {
+            if (it.id == userId) it.copy(status = "Rejected") else it
+        }
+    }
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
@@ -174,6 +205,19 @@ class AuthViewModel : ViewModel() {
         }
 
         val lowerEmail = email.trim().lowercase()
+
+        // Check registration approval status
+        val matchedUser = _registeredUsers.value.find { it.email.trim().lowercase() == lowerEmail }
+        if (matchedUser != null) {
+            if (matchedUser.status == "Pending") {
+                _authState.value = AuthState.Error("Aapka account abhi pending hai! Kripya apne Hotel Owner ya GM se contact karein aur isse approve karwayein.")
+                return
+            } else if (matchedUser.status == "Rejected") {
+                _authState.value = AuthState.Error("Aapka registration request Hotel Owner dwara reject kar diya gaya hai. Kripya naye details se apply karein.")
+                return
+            }
+        }
+
         // If they enter demo credentials, log them in instantly
         if (lowerEmail == "aurasuprime@auracore.com" || lowerEmail == "owner@auracore.com" || lowerEmail == "gm@auracore.com" || lowerEmail == "manager@auracore.com" || lowerEmail == "staff@auracore.com" || password == "admin123" || password == "demo123" || password == "supreme123") {
             val role = when (lowerEmail) {
@@ -235,6 +279,34 @@ class AuthViewModel : ViewModel() {
             } else if (!hotelId.isNullOrBlank()) {
                 selectHotel(hotelId)
             }
+
+            val hId = hotelId ?: _currentHotel.value?.id ?: "hotel_1"
+            val hName = _hotels.value.find { it.id == hId }?.name ?: "Hotel"
+            val isOwnerOrSupreme = role == "Owner" || role == "AuraSuprime"
+            val initialStatus = if (isOwnerOrSupreme) "Approved" else "Pending"
+
+            val newUser = RegisteredUser(
+                id = "u_" + System.currentTimeMillis().toString().takeLast(6),
+                name = name.trim(),
+                email = email.trim().lowercase(),
+                phone = phone.trim(),
+                role = role,
+                hotelId = hId,
+                hotelName = hName,
+                status = initialStatus
+            )
+
+            // Add to the registered list
+            val updatedUsers = _registeredUsers.value.toMutableList()
+            updatedUsers.add(newUser)
+            _registeredUsers.value = updatedUsers
+
+            if (!isOwnerOrSupreme) {
+                // Return registration pending so they see the notice on screen
+                _authState.value = AuthState.Error("REGISTRATION_PENDING_APPROVAL: Aapka registration safaltapoorvak (successfully) ho gaya hai! Lekin login karne ke liye Hotel Owner ke approval ki zaroorat hai. Kripya apne Owner ya GM se contact karein aur apna Mobile Number unhe batayein.")
+                return@launch
+            }
+
             try {
                 val firebaseAuth = auth ?: throw Exception("Firebase is not initialized.")
                 val db = firestore ?: throw Exception("Firestore is not initialized.")
@@ -248,8 +320,8 @@ class AuthViewModel : ViewModel() {
                         "phone" to phone.trim(),
                         "department" to "",
                         "employeeId" to "AC-${(1000..9999).random()}",
-                        "hotelId" to (_currentHotel.value?.id ?: ""),
-                        "hotelName" to (_currentHotel.value?.name ?: "")
+                        "hotelId" to hId,
+                        "hotelName" to hName
                     )
                     db.collection("users").document(uid).set(userProfile).await()
                     _authState.value = AuthState.Authenticated(role)
