@@ -910,6 +910,11 @@ fun DashboardScreen(
                                         DashboardModuleItem("Repairs", Icons.Default.Build, onNavigateToRepairs),
                                         DashboardModuleItem("Notice Board", Icons.Default.Campaign, onNavigateToHub)
                                     )
+                                    userRole == "HR" -> listOf(
+                                        DashboardModuleItem("My Tasks", Icons.Default.Assignment, onNavigateToAttendance),
+                                        DashboardModuleItem("HR & Atten.", Icons.Default.Person, onNavigateToHr),
+                                        DashboardModuleItem("Notice Board", Icons.Default.Campaign, onNavigateToHub)
+                                    )
                                     else -> listOf(
                                         DashboardModuleItem("My Tasks", Icons.Default.Assignment, onNavigateToAttendance),
                                         DashboardModuleItem("Notice Board", Icons.Default.Campaign, onNavigateToHub)

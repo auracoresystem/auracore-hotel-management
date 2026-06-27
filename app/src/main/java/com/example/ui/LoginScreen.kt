@@ -430,7 +430,7 @@ fun LoginScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(
                             "AuraSuprime", "Owner", "General Manager", "Department Head",
-                            "Receptionist", "Housekeeping", "Security",
+                            "HR", "Receptionist", "Housekeeping", "Security",
                             "Kitchen Staff", "Maintenance"
                         ).chunked(2).forEach { rowRoles ->
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -806,6 +806,15 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Button(
+                        onClick = { viewModel.loginAsDemo("HR", selectedHotelId) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6)), // Purple
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Text("HR", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
                     Button(
                         onClick = { viewModel.loginAsDemo("Security", selectedHotelId) },
                         modifier = Modifier.weight(1f),
