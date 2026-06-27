@@ -51,12 +51,13 @@ class AuthViewModel : ViewModel() {
 
         val lowerEmail = email.trim().lowercase()
         // If they enter demo credentials, log them in instantly
-        if (lowerEmail == "owner@auracore.com" || lowerEmail == "gm@auracore.com" || lowerEmail == "manager@auracore.com" || lowerEmail == "staff@auracore.com" || password == "admin123" || password == "demo123") {
+        if (lowerEmail == "aurasuprime@auracore.com" || lowerEmail == "owner@auracore.com" || lowerEmail == "gm@auracore.com" || lowerEmail == "manager@auracore.com" || lowerEmail == "staff@auracore.com" || password == "admin123" || password == "demo123" || password == "supreme123") {
             val role = when (lowerEmail) {
+                "aurasuprime@auracore.com" -> "AuraSuprime"
                 "owner@auracore.com" -> "Owner"
                 "gm@auracore.com" -> "General Manager"
                 "manager@auracore.com" -> "Department Head"
-                else -> "Staff"
+                else -> if (lowerEmail.contains("supreme") || lowerEmail.contains("suprime")) "AuraSuprime" else "Staff"
             }
             _authState.value = AuthState.Authenticated(role)
             return
@@ -75,6 +76,7 @@ class AuthViewModel : ViewModel() {
             } catch (e: Exception) {
                 // Auto-fallback so the user is never blocked by a missing or invalid Firebase API Key!
                 val fallbackRole = when {
+                    lowerEmail.contains("supreme") || lowerEmail.contains("suprime") -> "AuraSuprime"
                     lowerEmail.contains("owner") -> "Owner"
                     lowerEmail.contains("gm") || lowerEmail.contains("manager") -> "General Manager"
                     else -> "Owner" // Default to Owner so they get full access to test all features

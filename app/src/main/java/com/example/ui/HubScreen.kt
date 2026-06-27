@@ -1,8 +1,10 @@
 package com.example.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Delete
@@ -32,9 +34,9 @@ fun HubScreen(
 
     var showCreateDialog by remember { mutableStateOf(false) }
 
-    val isCoreTeam = userRole == "Owner" || userRole == "General Manager" || userRole == "Department Head"
+    val isCoreTeam = userRole == "Owner" || userRole == "General Manager" || userRole == "Department Head" || userRole == "AuraSuprime"
 
-    // Filter announcements: HOD/Core Team sees all, regular staff ONLY sees "All Staff"
+    // Filter announcements: Core Team sees everything, regular staff ONLY sees "All Staff"
     val filteredAnnouncements = remember(announcements, isCoreTeam) {
         if (isCoreTeam) {
             announcements
@@ -97,7 +99,7 @@ fun HubScreen(
                                     ) {
                                         Icon(Icons.Default.Campaign, contentDescription = null, tint = RoyalBlue)
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(announcement.title, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF0F172A))
+                                        Text(announcement.title, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color(0xFF0F172A))
                                     }
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         // Audience chip
@@ -113,8 +115,8 @@ fun HubScreen(
                                             modifier = Modifier.height(24.dp)
                                         )
                                         
-                                        // Delete only for Core Team
-                                        if (isCoreTeam) {
+                                        // Delete ONLY for AuraSuprime superuser
+                                        if (userRole == "AuraSuprime") {
                                             IconButton(onClick = { viewModel.deleteAnnouncement(announcement.id) }) {
                                                 Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
                                             }
@@ -123,6 +125,28 @@ fun HubScreen(
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(announcement.content, fontSize = 14.sp, color = Color(0xFF334155))
+                                
+                                Spacer(modifier = Modifier.height(12.dp))
+                                
+                                // Interactive Reaction Emoji Bar (Points 2: Kuch reaction hona chahiye!)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    ReactionBadge(emoji = "👍", count = announcement.thumbsUpCount) {
+                                        viewModel.reactToAnnouncement(announcement.id, "thumbsUp")
+                                    }
+                                    ReactionBadge(emoji = "❤️", count = announcement.heartCount) {
+                                        viewModel.reactToAnnouncement(announcement.id, "heart")
+                                    }
+                                    ReactionBadge(emoji = "🔥", count = announcement.fireCount) {
+                                        viewModel.reactToAnnouncement(announcement.id, "fire")
+                                    }
+                                    ReactionBadge(emoji = "👏", count = announcement.clapCount) {
+                                        viewModel.reactToAnnouncement(announcement.id, "clap")
+                                    }
+                                }
+
                                 Spacer(modifier = Modifier.height(12.dp))
                                 HorizontalDivider(color = Color(0xFFF1F5F9))
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -157,7 +181,7 @@ fun HubScreen(
         
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
-            title = { Text("Post Broadcast Announcement") },
+            title = { Text("Post Broadcast Announcement", fontWeight = FontWeight.Bold, color = RoyalBlue) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
@@ -210,5 +234,32 @@ fun HubScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+fun ReactionBadge(emoji: String, count: Int, onClick: () -> Unit) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (count > 0) Color(0xFFEFF6FF) else Color(0xFFF1F5F9) // Light blue tint if selected
+        ),
+        modifier = Modifier.clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(emoji, fontSize = 14.sp)
+            if (count > 0) {
+                Text(
+                    text = count.toString(),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = RoyalBlue
+                )
+            }
+        }
     }
 }

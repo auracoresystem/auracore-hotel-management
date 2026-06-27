@@ -170,7 +170,7 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(
-                            "Owner", "General Manager", "Department Head",
+                            "AuraSuprime", "Owner", "General Manager", "Department Head",
                             "Receptionist", "Housekeeping", "Security",
                             "Kitchen Staff", "Maintenance"
                         ).chunked(2).forEach { rowRoles ->
@@ -269,8 +269,23 @@ fun LoginScreen(
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
+                // Row 0: AuraSuprime Superuser
+                Text("SUPERUSER ROLE (FULL CONTROLS)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD97706), modifier = Modifier.align(Alignment.Start))
+                Spacer(modifier = Modifier.height(4.dp))
+                Button(
+                    onClick = { viewModel.loginAsDemo("AuraSuprime") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)), // Gold/Amber-700
+                    shape = RoundedCornerShape(6.dp),
+                    contentPadding = PaddingValues(vertical = 10.dp)
+                ) {
+                    Text("👑 Log In as AuraSuprime (Superuser)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // Row 1: Executive Team
-                Text("EXECUTIVE ROLES", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.align(Alignment.Start))
+                Text("EXECUTIVE ROLES (NO DELETE ACCESS)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.align(Alignment.Start))
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),

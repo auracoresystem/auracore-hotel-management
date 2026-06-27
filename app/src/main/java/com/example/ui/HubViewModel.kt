@@ -18,7 +18,11 @@ data class Announcement(
     val authorName: String = "",
     val authorId: String = "",
     val createdAt: Long = 0L,
-    val targetAudience: String = "All Staff"
+    val targetAudience: String = "All Staff",
+    val thumbsUpCount: Int = 0,
+    val heartCount: Int = 0,
+    val fireCount: Int = 0,
+    val clapCount: Int = 0
 )
 
 class HubViewModel : ViewModel() {
@@ -31,7 +35,6 @@ class HubViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // Fallback local list in case Firebase isn't available
     private val localAnnouncements = mutableListOf(
         Announcement(
             id = "demo_1",
@@ -39,7 +42,10 @@ class HubViewModel : ViewModel() {
             content = "We are pleased to announce that our Annual Staff Gala Night will be held on July 15th in the Grand Ballroom. All departments are requested to finalize their attendance sheets.",
             authorName = "General Manager",
             createdAt = System.currentTimeMillis() - 86400000L * 2,
-            targetAudience = "All Staff"
+            targetAudience = "All Staff",
+            thumbsUpCount = 4,
+            heartCount = 2,
+            fireCount = 1
         ),
         Announcement(
             id = "demo_2",
@@ -47,7 +53,8 @@ class HubViewModel : ViewModel() {
             content = "Effective immediately, all kitchen wastage over 5 kg must be approved by the Department Head. Please log daily reports before 9:00 PM.",
             authorName = "Executive Chef",
             createdAt = System.currentTimeMillis() - 86400000L,
-            targetAudience = "All Staff"
+            targetAudience = "All Staff",
+            thumbsUpCount = 1
         ),
         Announcement(
             id = "demo_3",
@@ -73,7 +80,6 @@ class HubViewModel : ViewModel() {
                     if (snapshot != null && !snapshot.isEmpty) {
                         _announcements.value = snapshot.toObjects(Announcement::class.java)
                     } else if (error != null) {
-                        // Fallback to local
                         _announcements.value = localAnnouncements.toList()
                     }
                 }
@@ -113,13 +119,12 @@ class HubViewModel : ViewModel() {
                 if (db != null) {
                     db.collection("announcements").document(announcement.id).set(announcement).await()
                 } else {
-                    // Local fallback
                     localAnnouncements.add(0, announcement)
                     _announcements.value = localAnnouncements.toList()
                 }
+                ToastManager.showToast("Notice Posted Successfully! 🎉")
                 onSuccess()
             } catch (e: Exception) {
-                // Local fallback on any write error
                 val announcement = Announcement(
                     id = "local_${System.currentTimeMillis()}",
                     title = title,
@@ -130,6 +135,7 @@ class HubViewModel : ViewModel() {
                 )
                 localAnnouncements.add(0, announcement)
                 _announcements.value = localAnnouncements.toList()
+                ToastManager.showToast("Notice Posted Locally! 🎉")
                 onSuccess()
             } finally {
                 _isLoading.value = false
@@ -147,10 +153,57 @@ class HubViewModel : ViewModel() {
                     localAnnouncements.removeAll { it.id == id }
                     _announcements.value = localAnnouncements.toList()
                 }
+                ToastManager.showToast("Announcement Deleted Successfully! 🗑️")
             } catch (e: Exception) {
                 localAnnouncements.removeAll { it.id == id }
                 _announcements.value = localAnnouncements.toList()
+                ToastManager.showToast("Announcement Deleted Locally! 🗑️")
             }
+        }
+    }
+
+    fun reactToAnnouncement(id: String, reactionType: String) {
+        viewModelScope.launch {
+            try {
+                val db = firestore
+                if (db != null) {
+                    val docRef = db.collection("announcements").document(id)
+                    db.runTransaction { transaction ->
+                        val snapshot = transaction.get(docRef)
+                        val announcement = snapshot.toObject(Announcement::class.java)
+                        if (announcement != null) {
+                            val updated = when (reactionType) {
+                                "thumbsUp" -> announcement.copy(thumbsUpCount = announcement.thumbsUpCount + 1)
+                                "heart" -> announcement.copy(heartCount = announcement.heartCount + 1)
+                                "fire" -> announcement.copy(fireCount = announcement.fireCount + 1)
+                                "clap" -> announcement.copy(clapCount = announcement.clapCount + 1)
+                                else -> announcement
+                            }
+                            transaction.set(docRef, updated)
+                        }
+                    }.await()
+                } else {
+                    updateLocalReaction(id, reactionType)
+                }
+            } catch (e: Exception) {
+                updateLocalReaction(id, reactionType)
+            }
+        }
+    }
+
+    private fun updateLocalReaction(id: String, reactionType: String) {
+        val index = localAnnouncements.indexOfFirst { it.id == id }
+        if (index != -1) {
+            val current = localAnnouncements[index]
+            val updated = when (reactionType) {
+                "thumbsUp" -> current.copy(thumbsUpCount = current.thumbsUpCount + 1)
+                "heart" -> current.copy(heartCount = current.heartCount + 1)
+                "fire" -> current.copy(fireCount = current.fireCount + 1)
+                "clap" -> current.copy(clapCount = current.clapCount + 1)
+                else -> current
+            }
+            localAnnouncements[index] = updated
+            _announcements.value = localAnnouncements.toList()
         }
     }
 }

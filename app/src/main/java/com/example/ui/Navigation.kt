@@ -106,8 +106,15 @@ fun AppNavigation(
             )
         }
         composable<KitchenWastageRoute> {
+            val authState by authViewModel.authState.collectAsStateWithLifecycle()
+            val userRole = when (val state = authState) {
+                is AuthState.Authenticated -> state.role
+                else -> "Owner"
+            }
             KitchenWastageScreen(
                 viewModel = wastageViewModel,
+                inventoryViewModel = inventoryViewModel,
+                userRole = userRole,
                 onBackClick = { navController.popBackStack() },
                 onAddClick = { navController.navigate(AddWastageRoute) }
             )
