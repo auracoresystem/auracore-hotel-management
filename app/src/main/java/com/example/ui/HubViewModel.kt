@@ -17,7 +17,8 @@ data class Announcement(
     val content: String = "",
     val authorName: String = "",
     val authorId: String = "",
-    val createdAt: Long = 0L
+    val createdAt: Long = 0L,
+    val targetAudience: String = "All Staff"
 )
 
 class HubViewModel : ViewModel() {
@@ -37,21 +38,24 @@ class HubViewModel : ViewModel() {
             title = "Annual Staff Gala Night",
             content = "We are pleased to announce that our Annual Staff Gala Night will be held on July 15th in the Grand Ballroom. All departments are requested to finalize their attendance sheets.",
             authorName = "General Manager",
-            createdAt = System.currentTimeMillis() - 86400000L * 2
+            createdAt = System.currentTimeMillis() - 86400000L * 2,
+            targetAudience = "All Staff"
         ),
         Announcement(
             id = "demo_2",
             title = "New Kitchen Wastage Policy",
             content = "Effective immediately, all kitchen wastage over 5 kg must be approved by the Department Head. Please log daily reports before 9:00 PM.",
             authorName = "Executive Chef",
-            createdAt = System.currentTimeMillis() - 86400000L
+            createdAt = System.currentTimeMillis() - 86400000L,
+            targetAudience = "All Staff"
         ),
         Announcement(
             id = "demo_3",
-            title = "System Update Completed",
-            content = "The AuraCore Hotel Management platform has been upgraded. All staff can now access the Core Team Hub and generate real-time reports.",
-            authorName = "IT Support",
-            createdAt = System.currentTimeMillis()
+            title = "Executive Budget Review",
+            content = "Quarterly budget meeting for HODs and Managers in the Boardroom tomorrow at 10 AM.",
+            authorName = "Owner",
+            createdAt = System.currentTimeMillis(),
+            targetAudience = "Core Team"
         )
     )
 
@@ -78,7 +82,7 @@ class HubViewModel : ViewModel() {
         }
     }
 
-    fun createAnnouncement(title: String, content: String, onSuccess: () -> Unit) {
+    fun createAnnouncement(title: String, content: String, targetAudience: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -102,7 +106,8 @@ class HubViewModel : ViewModel() {
                     content = content,
                     authorName = authorName,
                     authorId = userId,
-                    createdAt = System.currentTimeMillis()
+                    createdAt = System.currentTimeMillis(),
+                    targetAudience = targetAudience
                 )
 
                 if (db != null) {
@@ -120,7 +125,8 @@ class HubViewModel : ViewModel() {
                     title = title,
                     content = content,
                     authorName = "Core Team",
-                    createdAt = System.currentTimeMillis()
+                    createdAt = System.currentTimeMillis(),
+                    targetAudience = targetAudience
                 )
                 localAnnouncements.add(0, announcement)
                 _announcements.value = localAnnouncements.toList()

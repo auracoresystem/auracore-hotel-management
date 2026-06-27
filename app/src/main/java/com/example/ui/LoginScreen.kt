@@ -169,7 +169,11 @@ fun LoginScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("Owner", "General Manager", "Department Head", "Staff").chunked(2).forEach { rowRoles ->
+                        listOf(
+                            "Owner", "General Manager", "Department Head",
+                            "Receptionist", "Housekeeping", "Security",
+                            "Kitchen Staff", "Maintenance"
+                        ).chunked(2).forEach { rowRoles ->
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 rowRoles.forEach { role ->
                                     val isSelected = selectedRole == role
@@ -185,7 +189,7 @@ fun LoginScreen(
                                             if (isSelected) RoyalBlue else Color.LightGray
                                         )
                                     ) {
-                                        Text(role, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                        Text(role, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
@@ -265,6 +269,9 @@ fun LoginScreen(
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
+                // Row 1: Executive Team
+                Text("EXECUTIVE ROLES", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.align(Alignment.Start))
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -276,25 +283,87 @@ fun LoginScreen(
                         shape = RoundedCornerShape(6.dp),
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
-                        Text("Owner", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Owner", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                     Button(
                         onClick = { viewModel.loginAsDemo("General Manager") },
-                        modifier = Modifier.weight(1.3f),
+                        modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)), // Blue
                         shape = RoundedCornerShape(6.dp),
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
-                        Text("Gen Manager", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("GM", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                     Button(
                         onClick = { viewModel.loginAsDemo("Department Head") },
-                        modifier = Modifier.weight(1.2f),
+                        modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)), // Green
                         shape = RoundedCornerShape(6.dp),
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
-                        Text("Dept Head", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Dept Head", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Row 2 & 3: Department Staff Roles
+                Text("DEPARTMENT STAFF ROLES", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Gray, modifier = Modifier.align(Alignment.Start))
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.loginAsDemo("Receptionist") },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)), // Indigo
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Text("Receptionist", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Button(
+                        onClick = { viewModel.loginAsDemo("Housekeeping") },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)), // Amber
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Text("Housekeeping", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.loginAsDemo("Security") },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF64748B)), // Slate
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Text("Security", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Button(
+                        onClick = { viewModel.loginAsDemo("Kitchen Staff") },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEC4899)), // Pink
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Text("Kitchen", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Button(
+                        onClick = { viewModel.loginAsDemo("Maintenance") },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF14B8A6)), // Teal
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Text("Repairs", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }

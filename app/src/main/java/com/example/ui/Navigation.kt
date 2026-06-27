@@ -9,6 +9,8 @@ import com.example.wastage.WastageViewModel
 import com.example.ui.HotelViewModel
 import kotlinx.serialization.Serializable
 
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.AuthViewModel
 import com.example.ui.LoginScreen
 
@@ -73,7 +75,13 @@ fun AppNavigation(
             )
         }
         composable<DashboardRoute> {
+            val authState by authViewModel.authState.collectAsStateWithLifecycle()
+            val userRole = when (val state = authState) {
+                is AuthState.Authenticated -> state.role
+                else -> "Owner"
+            }
             DashboardScreen(
+                userRole = userRole,
                 onNavigateToKitchenWastage = {
                     navController.navigate(KitchenWastageRoute)
                 },
@@ -142,7 +150,12 @@ fun AppNavigation(
             SecurityScreen(viewModel = securityViewModel, onBackClick = { navController.popBackStack() })
         }
         composable<HubRoute> {
-            HubScreen(viewModel = hubViewModel, onBackClick = { navController.popBackStack() })
+            val authState by authViewModel.authState.collectAsStateWithLifecycle()
+            val userRole = when (val state = authState) {
+                is AuthState.Authenticated -> state.role
+                else -> "Owner"
+            }
+            HubScreen(viewModel = hubViewModel, userRole = userRole, onBackClick = { navController.popBackStack() })
         }
         composable<NotificationRoute> {
             NotificationScreen(viewModel = notificationViewModel, onBackClick = { navController.popBackStack() })
