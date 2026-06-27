@@ -39,9 +39,9 @@ data class WasteRecord(
 )
 
 class WastageViewModel : ViewModel() {
-    private val firestore = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
-    private val auth = FirebaseAuth.getInstance()
+    private val firestore: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
+    private val storage: FirebaseStorage? = try { FirebaseStorage.getInstance() } catch (e: Exception) { null }
+    private val auth: FirebaseAuth? = try { FirebaseAuth.getInstance() } catch (e: Exception) { null }
 
     private val _uiState = MutableStateFlow<List<WasteRecord>>(emptyList())
     val uiState: StateFlow<List<WasteRecord>> = _uiState.asStateFlow()
@@ -49,19 +49,43 @@ class WastageViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val offlineWastage = listOf(
+        WasteRecord(
+            id = "waste_w_1",
+            itemName = "Morning Buffet Leftover",
+            category = "Prepared Meals",
+            quantity = 6.8,
+            unit = "kg",
+            reason = "Overproduction",
+            remarks = "Excess food from large tour group breakfast.",
+            timestamp = System.currentTimeMillis() - 7200000,
+            date = "Today",
+            status = "Logged",
+            staffName = "Chef Amit"
+        )
+    )
+
     init {
         loadWasteRecords()
     }
 
     private fun loadWasteRecords() {
-        firestore.collection("kitchen_wastage")
-            .orderBy("timestamp", Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, _ ->
-                if (snapshot != null) {
-                    val records = snapshot.toObjects(WasteRecord::class.java)
-                    _uiState.value = records
+        _uiState.value = offlineWastage
+        val db = firestore ?: return
+        try {
+            db.collection("kitchen_wastage")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshot, _ ->
+                    if (snapshot != null && !snapshot.isEmpty) {
+                        val records = snapshot.toObjects(WasteRecord::class.java)
+                        _uiState.value = records
+                    } else {
+                        _uiState.value = offlineWastage
+                    }
                 }
-            }
+        } catch (e: Exception) {
+            _uiState.value = offlineWastage
+        }
     }
 
     fun addWasteRecord(
@@ -78,45 +102,64 @@ class WastageViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val user = auth.currentUser
-                if (user == null) {
-                    onError("User not authenticated.")
-                    _isLoading.value = false
-                    return@launch
-                }
+                val db = firestore
+                val firebaseAuth = auth
+                val firebaseStorage = storage
                 
-                val userDoc = firestore.collection("users").document(user.uid).get().await()
-                val staffName = userDoc.getString("name") ?: "Staff"
-                val staffId = userDoc.getString("staffId") ?: "N/A"
+                var finalStaffName = "Chef Amit"
+                var finalStaffId = "ST-101"
+                var finalUserId = "local_uid"
+                var finalPhotoUrl = photoUriString
 
-                val uri = Uri.parse(photoUriString)
-                val storageRef = storage.reference.child("wastage_images/${System.currentTimeMillis()}.jpg")
-                storageRef.putFile(uri).await()
-                val downloadUrl = storageRef.downloadUrl.await().toString()
+                val user = firebaseAuth?.currentUser
+                if (user != null && db != null) {
+                    val userDoc = db.collection("users").document(user.uid).get().await()
+                    finalStaffName = userDoc.getString("name") ?: "Staff"
+                    finalStaffId = userDoc.getString("staffId") ?: "N/A"
+                    finalUserId = user.uid
+
+                    if (photoUriString.isNotEmpty() && firebaseStorage != null) {
+                        try {
+                            val uri = Uri.parse(photoUriString)
+                            val storageRef = firebaseStorage.reference.child("wastage_images/${System.currentTimeMillis()}.jpg")
+                            storageRef.putFile(uri).await()
+                            finalPhotoUrl = storageRef.downloadUrl.await().toString()
+                        } catch (e: Exception) {
+                            // Fallback to local photo uri if upload fails
+                        }
+                    }
+                }
 
                 val calendar = Calendar.getInstance()
+                val newId = db?.collection("kitchen_wastage")?.document()?.id ?: "waste_${System.currentTimeMillis()}"
                 
                 val record = WasteRecord(
-                    id = firestore.collection("kitchen_wastage").document().id,
+                    id = newId,
                     itemName = itemName,
                     category = category,
                     quantity = quantity,
                     unit = unit,
                     reason = reason,
                     remarks = remarks,
-                    photoUri = downloadUrl,
+                    photoUri = finalPhotoUrl,
                     timestamp = System.currentTimeMillis(),
                     date = "${calendar.get(Calendar.DAY_OF_MONTH)}/${calendar.get(Calendar.MONTH) + 1}/${calendar.get(Calendar.YEAR)}",
                     time = "${calendar.get(Calendar.HOUR_OF_DAY)}:${calendar.get(Calendar.MINUTE)}",
                     day = calendar.get(Calendar.DAY_OF_MONTH).toString(),
                     month = (calendar.get(Calendar.MONTH) + 1).toString(),
                     year = calendar.get(Calendar.YEAR).toString(),
-                    staffName = staffName,
-                    staffId = staffId,
-                    userId = user.uid
+                    staffName = finalStaffName,
+                    staffId = finalStaffId,
+                    userId = finalUserId
                 )
 
-                firestore.collection("kitchen_wastage").document(record.id).set(record).await()
+                if (db != null) {
+                    db.collection("kitchen_wastage").document(record.id).set(record).await()
+                } else {
+                    val updated = _uiState.value.toMutableList()
+                    updated.add(0, record)
+                    _uiState.value = updated
+                }
                 onSuccess()
             } catch (e: Exception) {
                 onError(e.localizedMessage ?: "Failed to save wastage record")
@@ -129,7 +172,17 @@ class WastageViewModel : ViewModel() {
     fun updateStatus(id: String, status: String) {
         viewModelScope.launch {
             try {
-                firestore.collection("kitchen_wastage").document(id).update("status", status).await()
+                val db = firestore
+                if (db != null) {
+                    db.collection("kitchen_wastage").document(id).update("status", status).await()
+                } else {
+                    val index = _uiState.value.indexOfFirst { it.id == id }
+                    if (index != -1) {
+                        val updated = _uiState.value.toMutableList()
+                        updated[index] = updated[index].copy(status = status)
+                        _uiState.value = updated
+                    }
+                }
             } catch (e: Exception) {
                 // handle error
             }

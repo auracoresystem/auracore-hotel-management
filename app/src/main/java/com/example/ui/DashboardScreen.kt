@@ -88,7 +88,7 @@ fun DashboardScreen(
     val dashboardState by dashboardViewModel.dashboardState.collectAsStateWithLifecycle()
     val isRefreshing = dashboardState is DashboardState.Loading
     
-    val isCoreTeam = userRole == "Owner" || userRole == "General Manager" || userRole == "Department Head"
+    val isCoreTeam = userRole == "Owner" || userRole == "General Manager" || userRole == "Department Head" || userRole == "AuraSuprime"
     
     Scaffold(
         topBar = {

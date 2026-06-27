@@ -36,8 +36,8 @@ data class IncidentReport(
 )
 
 class SecurityViewModel : ViewModel() {
-    private val firestore = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
+    private val firestore: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
+    private val storage: FirebaseStorage? = try { FirebaseStorage.getInstance() } catch (e: Exception) { null }
 
     private val _visitors = MutableStateFlow<List<Visitor>>(emptyList())
     val visitors: StateFlow<List<Visitor>> = _visitors.asStateFlow()
@@ -48,29 +48,53 @@ class SecurityViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val offlineVisitors = listOf(
+        Visitor(id = "visitor_1", name = "Rahul Khanna", purpose = "AC Service", checkInTime = System.currentTimeMillis() - 7200000, vehicleNumber = "DL-3C-AB-1234"),
+        Visitor(id = "visitor_2", name = "Vikram Singh", purpose = "Delivery", checkInTime = System.currentTimeMillis() - 3600000, vehicleNumber = "HR-26-XY-5678")
+    )
+    private val offlineIncidents = listOf(
+        IncidentReport(id = "incident_1", title = "Parking space dispute", description = "Minor dispute between guest AC-102 & external visitor over parking spot #4.", type = "General", reportedAt = System.currentTimeMillis() - 14400000)
+    )
+
     init {
         loadVisitors()
         loadIncidents()
     }
 
     private fun loadVisitors() {
-        firestore.collection("visitors")
-            .orderBy("checkInTime", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, _ ->
-                if (snapshot != null) {
-                    _visitors.value = snapshot.toObjects(Visitor::class.java)
+        _visitors.value = offlineVisitors
+        val db = firestore ?: return
+        try {
+            db.collection("visitors")
+                .orderBy("checkInTime", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshot, _ ->
+                    if (snapshot != null && !snapshot.isEmpty) {
+                        _visitors.value = snapshot.toObjects(Visitor::class.java)
+                    } else {
+                        _visitors.value = offlineVisitors
+                    }
                 }
-            }
+        } catch (e: Exception) {
+            _visitors.value = offlineVisitors
+        }
     }
     
     private fun loadIncidents() {
-        firestore.collection("incidents")
-            .orderBy("reportedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, _ ->
-                if (snapshot != null) {
-                    _incidents.value = snapshot.toObjects(IncidentReport::class.java)
+        _incidents.value = offlineIncidents
+        val db = firestore ?: return
+        try {
+            db.collection("incidents")
+                .orderBy("reportedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshot, _ ->
+                    if (snapshot != null && !snapshot.isEmpty) {
+                        _incidents.value = snapshot.toObjects(IncidentReport::class.java)
+                    } else {
+                        _incidents.value = offlineIncidents
+                    }
                 }
-            }
+        } catch (e: Exception) {
+            _incidents.value = offlineIncidents
+        }
     }
 
     fun addVisitor(name: String, purpose: String, vehicle: String, photoUri: String?, onSuccess: () -> Unit) {
@@ -78,15 +102,18 @@ class SecurityViewModel : ViewModel() {
             _isLoading.value = true
             try {
                 var photoUrl = ""
-                if (photoUri != null) {
+                val firebaseStorage = storage
+                if (photoUri != null && firebaseStorage != null) {
                     val uri = Uri.parse(photoUri)
-                    val ref = storage.reference.child("visitors/${UUID.randomUUID()}.jpg")
+                    val ref = firebaseStorage.reference.child("visitors/${UUID.randomUUID()}.jpg")
                     ref.putFile(uri).await()
                     photoUrl = ref.downloadUrl.await().toString()
                 }
 
+                val db = firestore
+                val newId = db?.collection("visitors")?.document()?.id ?: "visitor_${System.currentTimeMillis()}"
                 val visitor = Visitor(
-                    id = firestore.collection("visitors").document().id,
+                    id = newId,
                     name = name,
                     purpose = purpose,
                     vehicleNumber = vehicle,
@@ -94,7 +121,13 @@ class SecurityViewModel : ViewModel() {
                     checkInTime = System.currentTimeMillis()
                 )
 
-                firestore.collection("visitors").document(visitor.id).set(visitor).await()
+                if (db != null) {
+                    db.collection("visitors").document(visitor.id).set(visitor).await()
+                } else {
+                    val updated = _visitors.value.toMutableList()
+                    updated.add(0, visitor)
+                    _visitors.value = updated
+                }
                 onSuccess()
             } catch (e: Exception) {
             } finally {
@@ -105,12 +138,25 @@ class SecurityViewModel : ViewModel() {
     
     fun checkOutVisitor(visitorId: String) {
         viewModelScope.launch {
-             firestore.collection("visitors").document(visitorId).update(
-                 mapOf(
-                     "status" to "Checked Out",
-                     "checkOutTime" to System.currentTimeMillis()
-                 )
-             )
+            val db = firestore
+            if (db != null) {
+                db.collection("visitors").document(visitorId).update(
+                    mapOf(
+                        "status" to "Checked Out",
+                        "checkOutTime" to System.currentTimeMillis()
+                    )
+                )
+            } else {
+                val index = _visitors.value.indexOfFirst { it.id == visitorId }
+                if (index != -1) {
+                    val updated = _visitors.value.toMutableList()
+                    updated[index] = updated[index].copy(
+                        status = "Checked Out",
+                        checkOutTime = System.currentTimeMillis()
+                    )
+                    _visitors.value = updated
+                }
+            }
         }
     }
     
@@ -118,14 +164,22 @@ class SecurityViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                val db = firestore
+                val newId = db?.collection("incidents")?.document()?.id ?: "incident_${System.currentTimeMillis()}"
                 val incident = IncidentReport(
-                    id = firestore.collection("incidents").document().id,
+                    id = newId,
                     title = title,
                     description = description,
                     type = type,
                     reportedAt = System.currentTimeMillis()
                 )
-                firestore.collection("incidents").document(incident.id).set(incident).await()
+                if (db != null) {
+                    db.collection("incidents").document(incident.id).set(incident).await()
+                } else {
+                    val updated = _incidents.value.toMutableList()
+                    updated.add(0, incident)
+                    _incidents.value = updated
+                }
                 onSuccess()
             } catch (e: Exception) {
             } finally {

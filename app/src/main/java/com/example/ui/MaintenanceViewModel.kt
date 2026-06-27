@@ -34,9 +34,9 @@ data class MaintenanceTicket(
 )
 
 class MaintenanceViewModel : ViewModel() {
-    private val firestore = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
-    private val auth = FirebaseAuth.getInstance()
+    private val firestore: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
+    private val storage: FirebaseStorage? = try { FirebaseStorage.getInstance() } catch (e: Exception) { null }
+    private val auth: FirebaseAuth? = try { FirebaseAuth.getInstance() } catch (e: Exception) { null }
 
     private val _tickets = MutableStateFlow<List<MaintenanceTicket>>(emptyList())
     val tickets: StateFlow<List<MaintenanceTicket>> = _tickets.asStateFlow()
@@ -44,18 +44,39 @@ class MaintenanceViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val offlineTickets = listOf(
+        MaintenanceTicket(
+            id = "ticket_m_1",
+            ticketNumber = "MNT-103",
+            roomNumber = "103",
+            category = "Electrical / AC",
+            priority = "High",
+            status = "Pending",
+            repairNotes = "AC compressor is making a loud noise and cooling is weak.",
+            createdAt = System.currentTimeMillis() - 7200000
+        )
+    )
+
     init {
         loadTickets()
     }
 
     private fun loadTickets() {
-        firestore.collection("maintenance_tickets")
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, _ ->
-                if (snapshot != null) {
-                    _tickets.value = snapshot.toObjects(MaintenanceTicket::class.java)
+        _tickets.value = offlineTickets
+        val db = firestore ?: return
+        try {
+            db.collection("maintenance_tickets")
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshot, _ ->
+                    if (snapshot != null && !snapshot.isEmpty) {
+                        _tickets.value = snapshot.toObjects(MaintenanceTicket::class.java)
+                    } else {
+                        _tickets.value = offlineTickets
+                    }
                 }
-            }
+        } catch (e: Exception) {
+            _tickets.value = offlineTickets
+        }
     }
 
     fun createTicket(
@@ -70,17 +91,20 @@ class MaintenanceViewModel : ViewModel() {
             _isLoading.value = true
             try {
                 var photoUrl = ""
-                if (beforePhotoUri != null) {
+                val firebaseStorage = storage
+                if (beforePhotoUri != null && firebaseStorage != null) {
                     val uri = Uri.parse(beforePhotoUri)
-                    val ref = storage.reference.child("maintenance/${UUID.randomUUID()}.jpg")
+                    val ref = firebaseStorage.reference.child("maintenance/${UUID.randomUUID()}.jpg")
                     ref.putFile(uri).await()
                     photoUrl = ref.downloadUrl.await().toString()
                 }
 
                 val ticketNum = "MNT-${System.currentTimeMillis()}"
                 
+                val db = firestore
+                val newId = db?.collection("maintenance_tickets")?.document()?.id ?: "ticket_${System.currentTimeMillis()}"
                 val ticket = MaintenanceTicket(
-                    id = firestore.collection("maintenance_tickets").document().id,
+                    id = newId,
                     ticketNumber = ticketNum,
                     roomNumber = roomNumber,
                     category = category,
@@ -90,7 +114,13 @@ class MaintenanceViewModel : ViewModel() {
                     createdAt = System.currentTimeMillis()
                 )
 
-                firestore.collection("maintenance_tickets").document(ticket.id).set(ticket).await()
+                if (db != null) {
+                    db.collection("maintenance_tickets").document(ticket.id).set(ticket).await()
+                } else {
+                    val updated = _tickets.value.toMutableList()
+                    updated.add(0, ticket)
+                    _tickets.value = updated
+                }
                 onSuccess()
             } catch (e: Exception) {
                 // error
@@ -113,10 +143,11 @@ class MaintenanceViewModel : ViewModel() {
                 val updates = mutableMapOf<String, Any>(
                     "status" to status
                 )
+                val firebaseStorage = storage
                 
-                if (afterPhotoUri != null) {
+                if (afterPhotoUri != null && firebaseStorage != null) {
                     val uri = Uri.parse(afterPhotoUri)
-                    val ref = storage.reference.child("maintenance/${UUID.randomUUID()}.jpg")
+                    val ref = firebaseStorage.reference.child("maintenance/${UUID.randomUUID()}.jpg")
                     ref.putFile(uri).await()
                     updates["afterPhotoUrl"] = ref.downloadUrl.await().toString()
                 }
@@ -125,17 +156,33 @@ class MaintenanceViewModel : ViewModel() {
                     updates["repairNotes"] = notes
                 }
 
+                val db = firestore
                 if (status == "Completed") {
                     updates["completedAt"] = System.currentTimeMillis()
-                    val user = auth.currentUser
-                    if (user != null) {
-                        val userDoc = firestore.collection("users").document(user.uid).get().await()
+                    val firebaseAuth = auth
+                    val user = firebaseAuth?.currentUser
+                    if (user != null && db != null) {
+                        val userDoc = db.collection("users").document(user.uid).get().await()
                         updates["completedById"] = user.uid
                         updates["completedByName"] = userDoc.getString("name") ?: "Technician"
                     }
                 }
 
-                firestore.collection("maintenance_tickets").document(ticketId).update(updates).await()
+                if (db != null) {
+                    db.collection("maintenance_tickets").document(ticketId).update(updates).await()
+                } else {
+                    val index = _tickets.value.indexOfFirst { it.id == ticketId }
+                    if (index != -1) {
+                        val updated = _tickets.value.toMutableList()
+                        var ticket = updated[index]
+                        if (updates.containsKey("afterPhotoUrl")) ticket = ticket.copy(afterPhotoUrl = updates["afterPhotoUrl"] as String)
+                        if (updates.containsKey("repairNotes")) ticket = ticket.copy(repairNotes = notes)
+                        if (updates.containsKey("completedAt")) ticket = ticket.copy(completedAt = updates["completedAt"] as Long, completedByName = "Local Staff")
+                        ticket = ticket.copy(status = status)
+                        updated[index] = ticket
+                        _tickets.value = updated
+                    }
+                }
                 onSuccess()
             } catch (e: Exception) {
                 // error

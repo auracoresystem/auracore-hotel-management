@@ -42,7 +42,7 @@ data class LeaveRequest(
 )
 
 class HrViewModel : ViewModel() {
-    private val firestore = FirebaseFirestore.getInstance()
+    private val firestore: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
 
     private val _employees = MutableStateFlow<List<Employee>>(emptyList())
     val employees: StateFlow<List<Employee>> = _employees.asStateFlow()
@@ -56,41 +56,74 @@ class HrViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val offlineEmployees = listOf(
+        Employee(id = "emp_1", employeeId = "AC-1001", name = "Amit Mishra", role = "Chef", department = "Kitchen", contactNumber = "9876543210"),
+        Employee(id = "emp_2", employeeId = "AC-1002", name = "Rohan Sharma", role = "Receptionist", department = "Front Office", contactNumber = "9876543211"),
+        Employee(id = "emp_3", employeeId = "AC-1003", name = "Sunita Verma", role = "Housekeeper", department = "Cleaning", contactNumber = "9876543212")
+    )
+    private val offlineLeaveRequests = listOf(
+        LeaveRequest(id = "leave_1", employeeId = "AC-1002", employeeName = "Rohan Sharma", startDate = System.currentTimeMillis() + 86400000, endDate = System.currentTimeMillis() + 259200000, reason = "Personal Work", status = "Pending")
+    )
+
     init {
         loadEmployees()
         loadLeaveRequests()
     }
 
     private fun loadEmployees() {
-        firestore.collection("employees")
-            .addSnapshotListener { snapshot, _ ->
-                if (snapshot != null) {
-                    _employees.value = snapshot.toObjects(Employee::class.java)
+        _employees.value = offlineEmployees
+        val db = firestore ?: return
+        try {
+            db.collection("employees")
+                .addSnapshotListener { snapshot, _ ->
+                    if (snapshot != null && !snapshot.isEmpty) {
+                        _employees.value = snapshot.toObjects(Employee::class.java)
+                    } else {
+                        _employees.value = offlineEmployees
+                    }
                 }
-            }
+        } catch (e: Exception) {
+            _employees.value = offlineEmployees
+        }
     }
 
     private fun loadLeaveRequests() {
-        firestore.collection("leave_requests")
-            .addSnapshotListener { snapshot, _ ->
-                if (snapshot != null) {
-                    _leaveRequests.value = snapshot.toObjects(LeaveRequest::class.java)
+        _leaveRequests.value = offlineLeaveRequests
+        val db = firestore ?: return
+        try {
+            db.collection("leave_requests")
+                .addSnapshotListener { snapshot, _ ->
+                    if (snapshot != null && !snapshot.isEmpty) {
+                        _leaveRequests.value = snapshot.toObjects(LeaveRequest::class.java)
+                    } else {
+                        _leaveRequests.value = offlineLeaveRequests
+                    }
                 }
-            }
+        } catch (e: Exception) {
+            _leaveRequests.value = offlineLeaveRequests
+        }
     }
     
     fun checkIn(employeeId: String, onSuccess: () -> Unit) {
          viewModelScope.launch {
             _isLoading.value = true
             try {
+                val db = firestore
+                val newId = db?.collection("attendance")?.document()?.id ?: "att_${System.currentTimeMillis()}"
                 val attendance = Attendance(
-                    id = firestore.collection("attendance").document().id,
+                    id = newId,
                     employeeId = employeeId,
                     date = System.currentTimeMillis(),
                     checkInTime = System.currentTimeMillis(),
                     status = "Present"
                 )
-                firestore.collection("attendance").document(attendance.id).set(attendance).await()
+                if (db != null) {
+                    db.collection("attendance").document(attendance.id).set(attendance).await()
+                } else {
+                    val updated = _attendances.value.toMutableList()
+                    updated.add(0, attendance)
+                    _attendances.value = updated
+                }
                 onSuccess()
             } catch (e: Exception) {
             } finally {
@@ -103,14 +136,22 @@ class HrViewModel : ViewModel() {
          viewModelScope.launch {
             _isLoading.value = true
             try {
+                val db = firestore
+                val newId = db?.collection("leave_requests")?.document()?.id ?: "leave_${System.currentTimeMillis()}"
                 val leave = LeaveRequest(
-                    id = firestore.collection("leave_requests").document().id,
+                    id = newId,
                     employeeId = employeeId,
                     employeeName = name,
                     startDate = System.currentTimeMillis(),
                     reason = reason
                 )
-                firestore.collection("leave_requests").document(leave.id).set(leave).await()
+                if (db != null) {
+                    db.collection("leave_requests").document(leave.id).set(leave).await()
+                } else {
+                    val updated = _leaveRequests.value.toMutableList()
+                    updated.add(0, leave)
+                    _leaveRequests.value = updated
+                }
                 onSuccess()
             } catch (e: Exception) {
             } finally {

@@ -29,7 +29,7 @@ sealed class DashboardState {
 }
 
 class DashboardViewModel : ViewModel() {
-    private val firestore = FirebaseFirestore.getInstance()
+    private val firestore: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
 
     private val _dashboardState = MutableStateFlow<DashboardState>(DashboardState.Loading)
     val dashboardState: StateFlow<DashboardState> = _dashboardState.asStateFlow()
@@ -43,15 +43,68 @@ class DashboardViewModel : ViewModel() {
 
     private val listeners = mutableListOf<ListenerRegistration>()
 
+    private val offlineRooms = listOf(
+        Room(id = "room_101", roomNumber = "101", status = "Available"),
+        Room(id = "room_102", roomNumber = "102", status = "Occupied", currentGuestId = "guest_aarav_sharma"),
+        Room(id = "room_103", roomNumber = "103", status = "Maintenance"),
+        Room(id = "room_104", roomNumber = "104", status = "Available"),
+        Room(id = "room_201", roomNumber = "201", status = "Available")
+    )
+    private val offlineTasks = listOf(
+        CleaningTask(id = "task_101", roomId = "room_101", roomNumber = "101", status = "Dirty"),
+        CleaningTask(id = "task_104", roomId = "room_104", roomNumber = "104", status = "Ready")
+    )
+    private val offlineTickets = listOf(
+        MaintenanceTicket(
+            id = "ticket_103",
+            ticketNumber = "MNT-103",
+            roomNumber = "103",
+            category = "Electrical / AC",
+            priority = "High",
+            status = "Pending",
+            repairNotes = "AC compressor is making a loud noise and cooling is weak.",
+            createdAt = System.currentTimeMillis()
+        )
+    )
+    private val offlineItems = listOf(
+        InventoryItem(id = "inv_1", name = "Premium Bed Sheets", category = "Linen", currentStock = 12.0, lowStockThreshold = 15.0, status = "Low Stock"),
+        InventoryItem(id = "inv_2", name = "Luxury Bath Towels", category = "Linen", currentStock = 35.0, lowStockThreshold = 10.0, status = "In Stock"),
+        InventoryItem(id = "inv_3", name = "Standard Toiletries", category = "Amenities", currentStock = 4.0, lowStockThreshold = 10.0, status = "Low Stock")
+    )
+    private val offlineWastage = listOf(
+        WasteRecord(
+            id = "waste_1",
+            itemName = "Morning Buffet Leftover",
+            category = "Prepared Meals",
+            quantity = 6.8,
+            unit = "kg",
+            reason = "Overproduction",
+            remarks = "Excess food from large tour group breakfast.",
+            timestamp = System.currentTimeMillis() - 7200000,
+            date = "Today",
+            status = "Logged"
+        )
+    )
+
     init {
         _dashboardState.value = DashboardState.Loading
-        seedDatabaseIfNeeded()
+        if (firestore == null) {
+            _roomsList.value = offlineRooms
+            _tasksList.value = offlineTasks
+            _ticketsList.value = offlineTickets
+            _itemsList.value = offlineItems
+            _wastageList.value = offlineWastage
+            updateDashboardMetrics()
+        } else {
+            seedDatabaseIfNeeded()
+        }
     }
 
     private fun seedDatabaseIfNeeded() {
+        val db = firestore ?: return
         viewModelScope.launch {
             try {
-                val roomsSnapshot = firestore.collection("rooms").limit(1).get().await()
+                val roomsSnapshot = db.collection("rooms").limit(1).get().await()
                 if (roomsSnapshot.isEmpty) {
                     // 1. Seed Rooms
                     val room1 = Room(id = "room_101", roomNumber = "101", status = "Available")
@@ -60,11 +113,11 @@ class DashboardViewModel : ViewModel() {
                     val room4 = Room(id = "room_104", roomNumber = "104", status = "Available")
                     val room5 = Room(id = "room_201", roomNumber = "201", status = "Available")
                     
-                    firestore.collection("rooms").document(room1.id).set(room1)
-                    firestore.collection("rooms").document(room2.id).set(room2)
-                    firestore.collection("rooms").document(room3.id).set(room3)
-                    firestore.collection("rooms").document(room4.id).set(room4)
-                    firestore.collection("rooms").document(room5.id).set(room5)
+                    db.collection("rooms").document(room1.id).set(room1)
+                    db.collection("rooms").document(room2.id).set(room2)
+                    db.collection("rooms").document(room3.id).set(room3)
+                    db.collection("rooms").document(room4.id).set(room4)
+                    db.collection("rooms").document(room5.id).set(room5)
 
                     // 2. Seed Guest matching Room 102
                     val guest = Guest(
@@ -77,13 +130,13 @@ class DashboardViewModel : ViewModel() {
                         expectedCheckOutDate = System.currentTimeMillis() + 86400000,
                         history = listOf("Checked in by receptionist")
                     )
-                    firestore.collection("guests").document(guest.id).set(guest)
+                    db.collection("guests").document(guest.id).set(guest)
 
                     // 3. Seed Housekeeping tasks
                     val task1 = CleaningTask(id = "task_101", roomId = "room_101", roomNumber = "101", status = "Dirty")
                     val task2 = CleaningTask(id = "task_104", roomId = "room_104", roomNumber = "104", status = "Ready")
-                    firestore.collection("cleaning_tasks").document(task1.id).set(task1)
-                    firestore.collection("cleaning_tasks").document(task2.id).set(task2)
+                    db.collection("cleaning_tasks").document(task1.id).set(task1)
+                    db.collection("cleaning_tasks").document(task2.id).set(task2)
 
                     // 4. Seed Repairs ticket
                     val ticket = MaintenanceTicket(
@@ -96,15 +149,15 @@ class DashboardViewModel : ViewModel() {
                         repairNotes = "AC compressor is making a loud noise and cooling is weak.",
                         createdAt = System.currentTimeMillis()
                     )
-                    firestore.collection("maintenance_tickets").document(ticket.id).set(ticket)
+                    db.collection("maintenance_tickets").document(ticket.id).set(ticket)
 
                     // 5. Seed Inventory items
                     val inv1 = InventoryItem(id = "inv_1", name = "Premium Bed Sheets", category = "Linen", currentStock = 12.0, lowStockThreshold = 15.0, status = "Low Stock")
                     val inv2 = InventoryItem(id = "inv_2", name = "Luxury Bath Towels", category = "Linen", currentStock = 35.0, lowStockThreshold = 10.0, status = "In Stock")
                     val inv3 = InventoryItem(id = "inv_3", name = "Standard Toiletries", category = "Amenities", currentStock = 4.0, lowStockThreshold = 10.0, status = "Low Stock")
-                    firestore.collection("inventory_items").document(inv1.id).set(inv1)
-                    firestore.collection("inventory_items").document(inv2.id).set(inv2)
-                    firestore.collection("inventory_items").document(inv3.id).set(inv3)
+                    db.collection("inventory_items").document(inv1.id).set(inv1)
+                    db.collection("inventory_items").document(inv2.id).set(inv2)
+                    db.collection("inventory_items").document(inv3.id).set(inv3)
 
                     // 6. Seed Wastage
                     val waste1 = WasteRecord(
@@ -119,7 +172,7 @@ class DashboardViewModel : ViewModel() {
                         date = "Today",
                         status = "Logged"
                     )
-                    firestore.collection("kitchen_wastage").document(waste1.id).set(waste1)
+                    db.collection("kitchen_wastage").document(waste1.id).set(waste1)
                 }
             } catch (e: Exception) {
                 // Ignore seeding errors, fallback gracefully
@@ -130,12 +183,23 @@ class DashboardViewModel : ViewModel() {
     }
 
     fun loadDashboardData() {
+        val db = firestore
+        if (db == null) {
+            _roomsList.value = offlineRooms
+            _tasksList.value = offlineTasks
+            _ticketsList.value = offlineTickets
+            _itemsList.value = offlineItems
+            _wastageList.value = offlineWastage
+            updateDashboardMetrics()
+            return
+        }
+
         // Clear old listeners if any
         listeners.forEach { it.remove() }
         listeners.clear()
 
         try {
-            val r1 = firestore.collection("rooms")
+            val r1 = db.collection("rooms")
                 .addSnapshotListener { snapshot, _ ->
                     if (snapshot != null) {
                         _roomsList.value = snapshot.toObjects(Room::class.java)
@@ -144,7 +208,7 @@ class DashboardViewModel : ViewModel() {
                 }
             listeners.add(r1)
 
-            val r2 = firestore.collection("cleaning_tasks")
+            val r2 = db.collection("cleaning_tasks")
                 .addSnapshotListener { snapshot, _ ->
                     if (snapshot != null) {
                         _tasksList.value = snapshot.toObjects(CleaningTask::class.java)
@@ -153,7 +217,7 @@ class DashboardViewModel : ViewModel() {
                 }
             listeners.add(r2)
 
-            val r3 = firestore.collection("maintenance_tickets")
+            val r3 = db.collection("maintenance_tickets")
                 .addSnapshotListener { snapshot, _ ->
                     if (snapshot != null) {
                         _ticketsList.value = snapshot.toObjects(MaintenanceTicket::class.java)
@@ -162,7 +226,7 @@ class DashboardViewModel : ViewModel() {
                 }
             listeners.add(r3)
 
-            val r4 = firestore.collection("inventory_items")
+            val r4 = db.collection("inventory_items")
                 .addSnapshotListener { snapshot, _ ->
                     if (snapshot != null) {
                         _itemsList.value = snapshot.toObjects(InventoryItem::class.java)
@@ -171,7 +235,7 @@ class DashboardViewModel : ViewModel() {
                 }
             listeners.add(r4)
 
-            val r5 = firestore.collection("guests")
+            val r5 = db.collection("guests")
                 .addSnapshotListener { snapshot, _ ->
                     if (snapshot != null) {
                         _guestsList.value = snapshot.toObjects(Guest::class.java)
@@ -180,7 +244,7 @@ class DashboardViewModel : ViewModel() {
                 }
             listeners.add(r5)
 
-            val r6 = firestore.collection("kitchen_wastage")
+            val r6 = db.collection("kitchen_wastage")
                 .addSnapshotListener { snapshot, _ ->
                     if (snapshot != null) {
                         _wastageList.value = snapshot.toObjects(WasteRecord::class.java)
