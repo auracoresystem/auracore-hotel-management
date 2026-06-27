@@ -29,7 +29,7 @@ object AddWastageRoute
 @Serializable object ReceptionRoute
 @Serializable object CleaningRoute
 @Serializable object RepairsRoute
-@Serializable object StaffRoute
+@Serializable object AttendanceRoute
 @Serializable object ReportsRoute
 @Serializable object ProfileRoute
 @Serializable object InventoryRoute
@@ -89,7 +89,7 @@ fun AppNavigation(
                 onNavigateToReception = { navController.navigate(ReceptionRoute) },
                 onNavigateToCleaning = { navController.navigate(CleaningRoute) },
                 onNavigateToRepairs = { navController.navigate(RepairsRoute) },
-                onNavigateToStaff = { navController.navigate(StaffRoute) },
+                onNavigateToAttendance = { navController.navigate(AttendanceRoute) },
                 onNavigateToReports = { navController.navigate(ReportsRoute) },
                 onNavigateToProfile = { navController.navigate(ProfileRoute) },
                 onNavigateToInventory = { navController.navigate(InventoryRoute) },
@@ -139,8 +139,17 @@ fun AppNavigation(
         composable<InventoryRoute> {
             InventoryScreen(viewModel = inventoryViewModel, onBackClick = { navController.popBackStack() })
         }
-        composable<StaffRoute> {
-            StaffScreen(hotelViewModel = hotelViewModel, onBackClick = { navController.popBackStack() })
+        composable<AttendanceRoute> {
+            val authState by authViewModel.authState.collectAsStateWithLifecycle()
+            val userRole = when (val state = authState) {
+                is AuthState.Authenticated -> state.role
+                else -> "Staff"
+            }
+            val userName = when (val state = authState) {
+                is AuthState.Authenticated -> state.name
+                else -> "Staff Member"
+            }
+            AttendanceScreen(userRole = userRole, userName = userName, onBackClick = { navController.popBackStack() })
         }
         composable<ReportsRoute> {
             ReportsScreen(viewModel = reportsViewModel, onBackClick = { navController.popBackStack() })

@@ -17,7 +17,7 @@ import org.json.JSONObject
 sealed class AuthState {
     object Idle : AuthState()
     object Loading : AuthState()
-    data class Authenticated(val role: String) : AuthState()
+    data class Authenticated(val role: String, val name: String = "User") : AuthState()
     data class Error(val message: String) : AuthState()
 }
 
@@ -100,7 +100,9 @@ data class RegisteredUser(
     val hotelName: String,
     val status: String = "Pending", // "Pending", "Approved", "Rejected"
     val staffId: String = "",
-    val password: String = "12345"
+    val password: String = "12345",
+    val isCoreTeam: Boolean = false,
+    val hasApprovalAuthority: Boolean = false
 )
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
@@ -175,6 +177,22 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     fun approveUser(userId: String) {
         val updated = _registeredUsers.value.map {
             if (it.id == userId) it.copy(status = "Approved") else it
+        }
+        _registeredUsers.value = updated
+        saveUsersToPrefs(updated)
+    }
+
+    fun toggleCoreTeam(userId: String, isCoreTeam: Boolean) {
+        val updated = _registeredUsers.value.map {
+            if (it.id == userId) it.copy(isCoreTeam = isCoreTeam) else it
+        }
+        _registeredUsers.value = updated
+        saveUsersToPrefs(updated)
+    }
+    
+    fun toggleApprovalAuthority(userId: String, hasAuthority: Boolean) {
+        val updated = _registeredUsers.value.map {
+            if (it.id == userId) it.copy(hasApprovalAuthority = hasAuthority) else it
         }
         _registeredUsers.value = updated
         saveUsersToPrefs(updated)
@@ -316,7 +334,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 _currentHotel.value = null
             }
-            _authState.value = AuthState.Authenticated(role)
+            _authState.value = AuthState.Authenticated(role, matchedUser.name)
             return
         }
 

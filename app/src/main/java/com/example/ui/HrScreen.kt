@@ -26,6 +26,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -322,6 +323,8 @@ fun HrScreen(
                                         TableHeaderCell("Mobile Number", width = 130.dp)
                                         TableHeaderCell("Email ID", width = 180.dp)
                                         TableHeaderCell("Password", width = 110.dp)
+                                        TableHeaderCell("Core Team", width = 100.dp)
+                                        TableHeaderCell("Approver", width = 100.dp)
                                         TableHeaderCell("Actions", width = 120.dp)
                                     }
 
@@ -337,6 +340,7 @@ fun HrScreen(
                                                 "Kitchen Staff" -> "Kitchen"
                                                 "Maintenance" -> "Maintenance"
                                                 "General Manager", "Department Head" -> "Management"
+                                                "Executive Chef", "Head Chef", "Sous Chef", "CDP", "Manager", "ARM", "RM" -> "Kitchen/Management"
                                                 else -> "Other"
                                             }
 
@@ -409,6 +413,31 @@ fun HrScreen(
                                                             tint = Color.Gray
                                                         )
                                                     }
+                                                }
+
+                                                // Core Team
+                                                Row(
+                                                    modifier = Modifier.width(100.dp),
+                                                    horizontalArrangement = Arrangement.Center
+                                                ) {
+                                                    Switch(
+                                                        checked = staff.isCoreTeam,
+                                                        onCheckedChange = { authViewModel.toggleCoreTeam(staff.id, it) },
+                                                        modifier = Modifier.scale(0.7f)
+                                                    )
+                                                }
+
+                                                // Approver
+                                                Row(
+                                                    modifier = Modifier.width(100.dp),
+                                                    horizontalArrangement = Arrangement.Center
+                                                ) {
+                                                    Switch(
+                                                        checked = staff.hasApprovalAuthority,
+                                                        onCheckedChange = { authViewModel.toggleApprovalAuthority(staff.id, it) },
+                                                        enabled = staff.isCoreTeam,
+                                                        modifier = Modifier.scale(0.7f)
+                                                    )
                                                 }
 
                                                 // Copy Action Cell

@@ -125,69 +125,6 @@ fun ReceptionScreen(hotelViewModel: HotelViewModel, onBackClick: () -> Unit) {
 
 // BaseScreen and other screens...
 
-@Composable
-fun StaffScreen(hotelViewModel: HotelViewModel, onBackClick: () -> Unit) {
-    val staff by hotelViewModel.staff.collectAsStateWithLifecycle()
-    var showDialog by remember { mutableStateOf(false) }
-    var staffName by remember { mutableStateOf("") }
-    var staffRole by remember { mutableStateOf("") }
 
-    BaseScreen(title = "Staff Management", onBackClick = onBackClick, fabAction = { showDialog = true }) { padding ->
-        LazyColumn(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
-            items(staff) { member ->
-                Card(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
-                    ListItem(
-                        headlineContent = { Text(member.name, fontWeight = FontWeight.Bold) },
-                        supportingContent = { Text("${member.role} - " + if (member.isOnDuty) "On Duty" else "Off Duty") },
-                        leadingContent = { Icon(Icons.Default.Badge, contentDescription = null, tint = RoyalBlue) },
-                        trailingContent = {
-                            Switch(checked = member.isOnDuty, onCheckedChange = { hotelViewModel.toggleStaffDuty(member) })
-                        }
-                    )
-                }
-            }
-             if (staff.isEmpty()) {
-                item { Text("No staff members. Tap + to add.") }
-            }
-        }
-    }
-
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text("Add Staff Member") },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = staffName,
-                        onValueChange = { staffName = it },
-                        label = { Text("Name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = staffRole,
-                        onValueChange = { staffRole = it },
-                        label = { Text("Role (e.g. Receptionist)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (staffName.isNotBlank() && staffRole.isNotBlank()) {
-                        hotelViewModel.addStaff(staffName, staffRole)
-                        staffName = ""
-                        staffRole = ""
-                        showDialog = false
-                    }
-                }) { Text("Add") }
-            },
-            dismissButton = { TextButton(onClick = { showDialog = false }) { Text("Cancel") } }
-        )
-    }
-}
 
 

@@ -59,6 +59,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Assignment
 import com.example.ui.DashboardViewModel
 import com.example.ui.DashboardState
 
@@ -78,7 +79,6 @@ fun DashboardScreen(
     onNavigateToReception: () -> Unit,
     onNavigateToCleaning: () -> Unit,
     onNavigateToRepairs: () -> Unit,
-    onNavigateToStaff: () -> Unit,
     onNavigateToReports: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToInventory: () -> Unit,
@@ -86,6 +86,7 @@ fun DashboardScreen(
     onNavigateToLaundry: () -> Unit,
     onNavigateToSecurity: () -> Unit,
     onNavigateToHub: () -> Unit,
+    onNavigateToAttendance: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -95,6 +96,10 @@ fun DashboardScreen(
     val currentHotel by authViewModel.currentHotel.collectAsStateWithLifecycle()
     val hotels by authViewModel.hotels.collectAsStateWithLifecycle()
     val registeredUsers by authViewModel.registeredUsers.collectAsStateWithLifecycle()
+    
+    val authState by authViewModel.authState.collectAsStateWithLifecycle()
+    val currentUser = (authState as? AuthState.Authenticated)?.name ?: "User"
+    
     val pendingApprovals = remember(registeredUsers, currentHotel) {
         registeredUsers.filter { it.hotelId == (currentHotel?.id ?: "") && it.status == "Pending" }
     }
@@ -137,10 +142,15 @@ fun DashboardScreen(
                             letterSpacing = 1.sp
                         )
                         Text(
-                            text = if (userRole == "AuraSuprime") "AuraSuprime Admin" else userRole,
+                            text = if (userRole == "AuraSuprime") "Welcome, Admin" else "Welcome, $currentUser",
                             color = Color.White,
-                            fontSize = 22.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Role: $userRole",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 12.sp
                         )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -199,10 +209,6 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     BottomNavItem(Icons.Default.Dashboard, "Home", isSelected = true, onClick = {})
-                    
-                    if (isCoreTeam) {
-                        BottomNavItem(Icons.Default.Groups, "Staff", isSelected = false, onClick = onNavigateToStaff)
-                    }
                     
                     // Center Add Button (Only show for executive Core Team)
                     if (isCoreTeam) {
@@ -866,6 +872,7 @@ fun DashboardScreen(
                             val allowedModules = remember(userRole, isCoreTeam) {
                                 when {
                                     isCoreTeam -> listOf(
+                                        DashboardModuleItem("Attendance", Icons.Default.Assignment, onNavigateToAttendance),
                                         DashboardModuleItem("Reception", Icons.Default.RoomService, onNavigateToReception),
                                         DashboardModuleItem("Cleaning", Icons.Default.CleaningServices, onNavigateToCleaning),
                                         DashboardModuleItem("Wastage", Icons.Default.Delete, onNavigateToKitchenWastage),
@@ -877,28 +884,34 @@ fun DashboardScreen(
                                         DashboardModuleItem("Laundry", Icons.Default.Done, onNavigateToLaundry)
                                     )
                                     userRole == "Housekeeping" -> listOf(
+                                        DashboardModuleItem("My Tasks", Icons.Default.Assignment, onNavigateToAttendance),
                                         DashboardModuleItem("Cleaning", Icons.Default.CleaningServices, onNavigateToCleaning),
                                         DashboardModuleItem("Laundry", Icons.Default.Done, onNavigateToLaundry),
                                         DashboardModuleItem("Notice Board", Icons.Default.Campaign, onNavigateToHub)
                                     )
                                     userRole == "Security" -> listOf(
+                                        DashboardModuleItem("My Tasks", Icons.Default.Assignment, onNavigateToAttendance),
                                         DashboardModuleItem("Security", Icons.Default.Lock, onNavigateToSecurity),
                                         DashboardModuleItem("Notice Board", Icons.Default.Campaign, onNavigateToHub)
                                     )
                                     userRole == "Receptionist" -> listOf(
+                                        DashboardModuleItem("My Tasks", Icons.Default.Assignment, onNavigateToAttendance),
                                         DashboardModuleItem("Reception", Icons.Default.RoomService, onNavigateToReception),
                                         DashboardModuleItem("Laundry", Icons.Default.Done, onNavigateToLaundry),
                                         DashboardModuleItem("Notice Board", Icons.Default.Campaign, onNavigateToHub)
                                     )
                                     userRole == "Kitchen Staff" -> listOf(
+                                        DashboardModuleItem("My Tasks", Icons.Default.Assignment, onNavigateToAttendance),
                                         DashboardModuleItem("Wastage", Icons.Default.Delete, onNavigateToKitchenWastage),
                                         DashboardModuleItem("Notice Board", Icons.Default.Campaign, onNavigateToHub)
                                     )
                                     userRole == "Maintenance" -> listOf(
+                                        DashboardModuleItem("My Tasks", Icons.Default.Assignment, onNavigateToAttendance),
                                         DashboardModuleItem("Repairs", Icons.Default.Build, onNavigateToRepairs),
                                         DashboardModuleItem("Notice Board", Icons.Default.Campaign, onNavigateToHub)
                                     )
                                     else -> listOf(
+                                        DashboardModuleItem("My Tasks", Icons.Default.Assignment, onNavigateToAttendance),
                                         DashboardModuleItem("Notice Board", Icons.Default.Campaign, onNavigateToHub)
                                     )
                                 }
