@@ -12,6 +12,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalMall
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.MoneyOff
 import androidx.compose.material.icons.filled.PendingActions
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Warning
@@ -41,6 +44,9 @@ fun InventoryScreen(
 ) {
     val items by viewModel.items.collectAsStateWithLifecycle()
     val requirements by viewModel.requirements.collectAsStateWithLifecycle()
+    val vendors by viewModel.vendors.collectAsStateWithLifecycle()
+    val purchases by viewModel.purchases.collectAsStateWithLifecycle()
+    val expenses by viewModel.expenses.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     
     val authState by authViewModel.authState.collectAsStateWithLifecycle()
@@ -59,16 +65,25 @@ fun InventoryScreen(
     var showAddItemDialog by remember { mutableStateOf(false) }
     var showAddRequisitionDialog by remember { mutableStateOf(false) }
     var showTransactionDialog by remember { mutableStateOf(false) }
+    var showAddVendorDialog by remember { mutableStateOf(false) }
+    var showAddPurchaseDialog by remember { mutableStateOf(false) }
+    var showAddExpenseDialog by remember { mutableStateOf(false) }
     var selectedItem by remember { mutableStateOf<InventoryItem?>(null) }
 
     BaseScreen(
-        title = "Store Inventory & Requisitions",
+        title = "Store Dashboard",
         onBackClick = onBackClick,
         fabAction = {
             if (selectedTab == 0 && userRole != "Kitchen Staff") {
                 showAddItemDialog = true
             } else if (selectedTab == 1 && userRole == "Kitchen Staff") {
                 showAddRequisitionDialog = true
+            } else if (selectedTab == 2) {
+                showAddVendorDialog = true
+            } else if (selectedTab == 3) {
+                showAddPurchaseDialog = true
+            } else if (selectedTab == 4) {
+                showAddExpenseDialog = true
             }
         }
     ) { padding ->
@@ -83,15 +98,18 @@ fun InventoryScreen(
 
             // Tabs for Stock & Kitchen Requests
             if (userRole != "Kitchen Staff") {
-                TabRow(
+                ScrollableTabRow(
                     selectedTabIndex = selectedTab,
                     containerColor = Color.White,
                     contentColor = RoyalBlue,
+                    edgePadding = 8.dp,
                     indicator = { tabPositions ->
-                        TabRowDefaults.SecondaryIndicator(
-                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                            color = RoyalBlue
-                        )
+                        if (selectedTab < tabPositions.size) {
+                            TabRowDefaults.SecondaryIndicator(
+                                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                                color = RoyalBlue
+                            )
+                        }
                     }
                 ) {
                     Tab(
@@ -101,7 +119,7 @@ fun InventoryScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.LocalMall, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Store Stock", fontWeight = FontWeight.SemiBold)
+                                Text("Stock", fontWeight = FontWeight.SemiBold)
                             }
                         }
                     )
@@ -123,75 +141,128 @@ fun InventoryScreen(
                             }
                         }
                     )
+                    Tab(
+                        selected = selectedTab == 2,
+                        onClick = { selectedTab = 2 },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.People, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Vendors", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    )
+                    Tab(
+                        selected = selectedTab == 3,
+                        onClick = { selectedTab = 3 },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Purchases", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    )
+                    Tab(
+                        selected = selectedTab == 4,
+                        onClick = { selectedTab = 4 },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.MoneyOff, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Expenses", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    )
                 }
             }
 
-            if (selectedTab == 0) {
-                // Stock list
-                if (items.isEmpty() && !isLoading) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.Info, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(48.dp))
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("No inventory items found.", color = Color.Gray)
+            when (selectedTab) {
+                0 -> {
+                    // Stock list
+                    if (items.isEmpty() && !isLoading) {
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(48.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("No inventory items found.", color = Color.Gray)
+                            }
                         }
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(items) { item ->
-                            InventoryCard(
-                                item = item,
-                                onClick = {
+                    } else {
+                        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            items(items) { item ->
+                                InventoryCard(item = item, onClick = {
                                     selectedItem = item
                                     showTransactionDialog = true
-                                }
-                            )
+                                })
+                            }
                         }
                     }
                 }
-            } else {
-                // Kitchen Requisitions list
-                if (requirements.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(48.dp))
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("No kitchen requirements found.", color = Color.Gray)
+                1 -> {
+                    // Kitchen Requisitions list
+                    if (requirements.isEmpty()) {
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(48.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("No kitchen requirements found.", color = Color.Gray)
+                            }
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(requirements) { req ->
+                                StoreRequisitionCard(
+                                    req = req,
+                                    userRole = userRole,
+                                    hasApprovalAuthority = hasApprovalAuthority,
+                                    onIssue = { viewModel.issueRequirement(req.id) },
+                                    onApprove = { viewModel.passRequirement(req.id) },
+                                    onReject = { viewModel.rejectRequirement(req.id) }
+                                )
+                            }
                         }
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(requirements) { req ->
-                            StoreRequisitionCard(
-                                req = req,
-                                userRole = userRole,
-                                hasApprovalAuthority = hasApprovalAuthority,
-                                onIssue = { viewModel.issueRequirement(req.id) },
-                                onApprove = { viewModel.passRequirement(req.id) },
-                                onReject = { viewModel.rejectRequirement(req.id) }
-                            )
+                }
+                2 -> {
+                    // Vendors List
+                    if (vendors.isEmpty()) {
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text("No vendors added.", color = Color.Gray)
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(vendors) { vendor ->
+                                VendorCard(vendor)
+                            }
+                        }
+                    }
+                }
+                3 -> {
+                    // Purchases List
+                    if (purchases.isEmpty()) {
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text("No purchases found.", color = Color.Gray)
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(purchases) { purchase ->
+                                PurchaseCard(purchase)
+                            }
+                        }
+                    }
+                }
+                4 -> {
+                    // Expenses List
+                    if (expenses.isEmpty()) {
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text("No expenses recorded.", color = Color.Gray)
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(expenses) { expense ->
+                                ExpenseCard(expense)
+                            }
                         }
                     }
                 }
@@ -225,6 +296,36 @@ fun InventoryScreen(
             onDismiss = { showTransactionDialog = false },
             onSubmit = { type, qty, remarks ->
                 viewModel.addTransaction(selectedItem!!.id, type, qty, remarks, onSuccess = { showTransactionDialog = false })
+            }
+        )
+    }
+
+    if (showAddVendorDialog) {
+        AddVendorDialog(
+            onDismiss = { showAddVendorDialog = false },
+            onAdd = { name, contact, category ->
+                viewModel.addVendor(name, contact, category)
+                showAddVendorDialog = false
+            }
+        )
+    }
+
+    if (showAddPurchaseDialog) {
+        AddPurchaseDialog(
+            onDismiss = { showAddPurchaseDialog = false },
+            onAdd = { vName, iName, qty, unit, rate ->
+                viewModel.addPurchase(vName, iName, qty, unit, rate)
+                showAddPurchaseDialog = false
+            }
+        )
+    }
+
+    if (showAddExpenseDialog) {
+        AddExpenseDialog(
+            onDismiss = { showAddExpenseDialog = false },
+            onAdd = { desc, amount, category ->
+                viewModel.addExpense(desc, amount, category)
+                showAddExpenseDialog = false
             }
         )
     }
@@ -495,6 +596,159 @@ fun TransactionDialog(
                 val q = qty.toDoubleOrNull()
                 if (q != null) onSubmit(type, q, remarks)
             }, colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue)) { Text("Submit") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+fun VendorCard(vendor: Vendor) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(vendor.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("Category: ${vendor.category}", color = Color.Gray, fontSize = 13.sp)
+            Text("Contact: ${vendor.contact}", color = Color.Gray, fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+fun PurchaseCard(purchase: StorePurchase) {
+    val dateStr = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(purchase.date))
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(purchase.itemName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("₹${purchase.totalAmount}", fontWeight = FontWeight.Bold, color = RoyalBlue)
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("Vendor: ${purchase.vendorName}", color = Color.Gray, fontSize = 13.sp)
+            Text("${purchase.quantity} ${purchase.unit} @ ₹${purchase.rate}/${purchase.unit}", color = Color.Gray, fontSize = 13.sp)
+            Text("Date: $dateStr", color = Color.Gray, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+fun ExpenseCard(expense: StoreExpense) {
+    val dateStr = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(expense.date))
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(expense.description, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("Category: ${expense.category}", color = Color.Gray, fontSize = 13.sp)
+                Text(dateStr, color = Color.Gray, fontSize = 12.sp)
+            }
+            Text("₹${expense.amount}", fontWeight = FontWeight.Bold, color = Color.Red, fontSize = 16.sp)
+        }
+    }
+}
+
+@Composable
+fun AddVendorDialog(
+    onDismiss: () -> Unit,
+    onAdd: (String, String, String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var contact by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Vendor", fontWeight = FontWeight.Bold, color = RoyalBlue) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Vendor Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = contact, onValueChange = { contact = it }, label = { Text("Contact Number") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = category, onValueChange = { category = it }, label = { Text("Category (e.g. Dairy, Meat)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = {
+            Button(onClick = { 
+                if (name.isNotBlank()) onAdd(name, contact, category)
+            }, colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue)) { Text("Add Vendor") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+fun AddPurchaseDialog(
+    onDismiss: () -> Unit,
+    onAdd: (String, String, Double, String, Double) -> Unit
+) {
+    var vendorName by remember { mutableStateOf("") }
+    var itemName by remember { mutableStateOf("") }
+    var quantity by remember { mutableStateOf("") }
+    var unit by remember { mutableStateOf("") }
+    var rate by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Record Purchase", fontWeight = FontWeight.Bold, color = RoyalBlue) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = vendorName, onValueChange = { vendorName = it }, label = { Text("Vendor Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = itemName, onValueChange = { itemName = it }, label = { Text("Item Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = quantity, onValueChange = { quantity = it }, label = { Text("Quantity") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(value = unit, onValueChange = { unit = it }, label = { Text("Unit") }, singleLine = true, modifier = Modifier.weight(1f))
+                }
+                OutlinedTextField(value = rate, onValueChange = { rate = it }, label = { Text("Rate (Per Unit)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = {
+            Button(onClick = { 
+                val q = quantity.toDoubleOrNull() ?: 0.0
+                val r = rate.toDoubleOrNull() ?: 0.0
+                if (itemName.isNotBlank() && vendorName.isNotBlank() && q > 0 && r >= 0) {
+                    onAdd(vendorName, itemName, q, unit, r)
+                }
+            }, colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue)) { Text("Record Purchase") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+fun AddExpenseDialog(
+    onDismiss: () -> Unit,
+    onAdd: (String, Double, String) -> Unit
+) {
+    var desc by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Record Expense", fontWeight = FontWeight.Bold, color = RoyalBlue) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Description") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = category, onValueChange = { category = it }, label = { Text("Category (e.g. Transport, Labor)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = {
+            Button(onClick = { 
+                val amt = amount.toDoubleOrNull() ?: 0.0
+                if (desc.isNotBlank() && amt > 0) {
+                    onAdd(desc, amt, category)
+                }
+            }, colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue)) { Text("Record Expense") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )

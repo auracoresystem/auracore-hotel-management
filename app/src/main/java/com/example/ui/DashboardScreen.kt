@@ -62,6 +62,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.AttachMoney
 import com.example.ui.DashboardViewModel
 import com.example.ui.DashboardState
 
@@ -91,6 +92,7 @@ fun DashboardScreen(
     onNavigateToHub: () -> Unit,
     onNavigateToAttendance: () -> Unit,
     onNavigateToNotifications: () -> Unit,
+    onNavigateToRevenue: () -> Unit,
     onLogout: () -> Unit
 ) {
     val dashboardState by dashboardViewModel.dashboardState.collectAsStateWithLifecycle()
@@ -892,7 +894,8 @@ fun DashboardScreen(
                                         DashboardModuleItem("HR & Atten.", Icons.Default.Person, onNavigateToHr),
                                         DashboardModuleItem("Security", Icons.Default.Lock, onNavigateToSecurity),
                                         DashboardModuleItem("Core Team Hub", Icons.Default.Groups, onNavigateToHub),
-                                        DashboardModuleItem("Laundry", Icons.Default.Done, onNavigateToLaundry)
+                                        DashboardModuleItem("Laundry", Icons.Default.Done, onNavigateToLaundry),
+                                        DashboardModuleItem("Revenue", Icons.Default.AttachMoney, onNavigateToRevenue)
                                     )
                                     userRole == "Housekeeping" -> listOf(
                                         DashboardModuleItem("My Tasks", Icons.Default.Assignment, onNavigateToAttendance),

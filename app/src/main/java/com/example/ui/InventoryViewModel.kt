@@ -43,6 +43,32 @@ data class KitchenRequirement(
     val itemId: String = ""
 )
 
+data class Vendor(
+    val id: String = "",
+    val name: String = "",
+    val contact: String = "",
+    val category: String = ""
+)
+
+data class StorePurchase(
+    val id: String = "",
+    val vendorName: String = "",
+    val itemName: String = "",
+    val quantity: Double = 0.0,
+    val unit: String = "",
+    val rate: Double = 0.0,
+    val totalAmount: Double = 0.0,
+    val date: Long = 0L
+)
+
+data class StoreExpense(
+    val id: String = "",
+    val description: String = "",
+    val amount: Double = 0.0,
+    val date: Long = 0L,
+    val category: String = "Misc"
+)
+
 class InventoryViewModel : ViewModel() {
     private val firestore: FirebaseFirestore? = try { FirebaseFirestore.getInstance() } catch (e: Exception) { null }
 
@@ -54,6 +80,15 @@ class InventoryViewModel : ViewModel() {
 
     private val _requirements = MutableStateFlow<List<KitchenRequirement>>(emptyList())
     val requirements: StateFlow<List<KitchenRequirement>> = _requirements.asStateFlow()
+
+    private val _vendors = MutableStateFlow<List<Vendor>>(emptyList())
+    val vendors: StateFlow<List<Vendor>> = _vendors.asStateFlow()
+
+    private val _purchases = MutableStateFlow<List<StorePurchase>>(emptyList())
+    val purchases: StateFlow<List<StorePurchase>> = _purchases.asStateFlow()
+
+    private val _expenses = MutableStateFlow<List<StoreExpense>>(emptyList())
+    val expenses: StateFlow<List<StoreExpense>> = _expenses.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -93,10 +128,26 @@ class InventoryViewModel : ViewModel() {
         )
     )
 
+    private val localVendors = mutableListOf(
+        Vendor("v1", "Fresh Farms", "9876543210", "Vegetables"),
+        Vendor("v2", "City Meats", "9876543211", "Meat")
+    )
+
+    private val localPurchases = mutableListOf(
+        StorePurchase("p1", "Fresh Farms", "Onion", 50.0, "kg", 20.0, 1000.0, System.currentTimeMillis() - 86400000)
+    )
+
+    private val localExpenses = mutableListOf(
+        StoreExpense("e1", "Transport for Vegetables", 150.0, System.currentTimeMillis() - 86400000, "Transport")
+    )
+
     init {
         loadItems()
         loadTransactions()
         loadRequirements()
+        _vendors.value = localVendors.toList()
+        _purchases.value = localPurchases.toList()
+        _expenses.value = localExpenses.toList()
     }
 
     private fun loadRequirements() {
@@ -478,5 +529,42 @@ class InventoryViewModel : ViewModel() {
                 _isLoading.value = false
             }
         }
+    }
+    
+    fun addVendor(name: String, contact: String, category: String) {
+        val newVendor = Vendor(id = "v_${System.currentTimeMillis()}", name = name, contact = contact, category = category)
+        localVendors.add(newVendor)
+        _vendors.value = localVendors.toList()
+        ToastManager.showToast("Vendor Added! ✅")
+    }
+
+    fun addPurchase(vendorName: String, itemName: String, quantity: Double, unit: String, rate: Double) {
+        val total = quantity * rate
+        val newPurchase = StorePurchase(
+            id = "p_${System.currentTimeMillis()}",
+            vendorName = vendorName,
+            itemName = itemName,
+            quantity = quantity,
+            unit = unit,
+            rate = rate,
+            totalAmount = total,
+            date = System.currentTimeMillis()
+        )
+        localPurchases.add(newPurchase)
+        _purchases.value = localPurchases.toList()
+        ToastManager.showToast("Purchase Recorded! ✅")
+    }
+
+    fun addExpense(description: String, amount: Double, category: String) {
+        val newExpense = StoreExpense(
+            id = "e_${System.currentTimeMillis()}",
+            description = description,
+            amount = amount,
+            category = category,
+            date = System.currentTimeMillis()
+        )
+        localExpenses.add(newExpense)
+        _expenses.value = localExpenses.toList()
+        ToastManager.showToast("Expense Recorded! ✅")
     }
 }

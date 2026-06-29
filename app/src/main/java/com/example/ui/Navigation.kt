@@ -39,6 +39,7 @@ object AddWastageRoute
 @Serializable object SecurityRoute
 @Serializable object HubRoute
 @Serializable object NotificationRoute
+@Serializable object RevenueRoute
 
 @Composable
 fun AppNavigation(
@@ -100,6 +101,7 @@ fun AppNavigation(
                 onNavigateToSecurity = { navController.navigate(SecurityRoute) },
                 onNavigateToHub = { navController.navigate(HubRoute) },
                 onNavigateToNotifications = { navController.navigate(NotificationRoute) },
+                onNavigateToRevenue = { navController.navigate(RevenueRoute) },
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(LoginRoute) {
@@ -181,6 +183,9 @@ fun AppNavigation(
         }
         composable<NotificationRoute> {
             NotificationScreen(viewModel = notificationViewModel, onBackClick = { navController.popBackStack() })
+        }
+        composable<RevenueRoute> {
+            RevenueScreen(onBackClick = { navController.popBackStack() })
         }
     }
 }
