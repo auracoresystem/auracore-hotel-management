@@ -20,51 +20,51 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.RoyalBlue
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 data class RevenueEntry(
-    val id: String,
-    val source: String, // Room, Restaurant, Event, etc.
-    val description: String,
-    val amountWithoutGst: Double,
-    val gstAmount: Double,
-    val totalAmount: Double,
-    val date: Long
+    val id: String = "",
+    val source: String = "",
+    val description: String = "",
+    val amountWithoutGst: Double = 0.0,
+    val gstAmount: Double = 0.0,
+    val totalAmount: Double = 0.0,
+    val date: Long = 0L
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RevenueScreen(
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    viewModel: RevenueViewModel = viewModel()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
+    val revenueEntries by viewModel.revenueEntries.collectAsState()
     
-    // Simulated dummy data
-    val dummyEntries = remember {
-        listOf(
-            RevenueEntry("1", "Room", "Booking #1042", 5000.0, 600.0, 5600.0, System.currentTimeMillis()),
-            RevenueEntry("2", "Restaurant", "Table #4", 1500.0, 75.0, 1575.0, System.currentTimeMillis() - 86400000),
-            RevenueEntry("3", "Event", "Marriage Hall Advance", 50000.0, 9000.0, 59000.0, System.currentTimeMillis() - (86400000 * 2)),
-            RevenueEntry("4", "Room", "Booking #1043", 3000.0, 360.0, 3360.0, System.currentTimeMillis() - (86400000 * 3)),
-            RevenueEntry("5", "Restaurant", "Table #2", 800.0, 40.0, 840.0, System.currentTimeMillis() - (86400000 * 4))
-        )
-    }
+    val items by viewModel.items.collectAsState()
+    val purchases by viewModel.purchases.collectAsState()
+    val expenses by viewModel.expenses.collectAsState()
 
     val filteredEntries = when(selectedTab) {
-        0 -> dummyEntries
-        1 -> dummyEntries.filter { it.source == "Room" }
-        2 -> dummyEntries.filter { it.source == "Restaurant" }
-        3 -> dummyEntries.filter { it.source == "Event" }
-        else -> dummyEntries
+        0 -> revenueEntries
+        1 -> revenueEntries.filter { it.source == "Room" }
+        2 -> revenueEntries.filter { it.source == "Restaurant" }
+        3 -> revenueEntries.filter { it.source == "Event" }
+        else -> revenueEntries
     }
 
     val totalSale = filteredEntries.sumOf { it.totalAmount }
     val totalWithoutGst = filteredEntries.sumOf { it.amountWithoutGst }
     val totalGst = filteredEntries.sumOf { it.gstAmount }
 
+    val totalStockValue = items.sumOf { it.currentStock * it.unitPrice }
+    val totalPurchases = purchases.sumOf { it.totalAmount }
+    val totalExpenses = expenses.sumOf { it.amount }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Revenue & Sales", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+                title = { Text("Financials & Analytics", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -95,33 +95,49 @@ fun RevenueScreen(
                     }
                 }
             ) {
-                Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Total", fontWeight = FontWeight.SemiBold) })
+                Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("All Revenue", fontWeight = FontWeight.SemiBold) })
                 Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Rooms", fontWeight = FontWeight.SemiBold) })
                 Tab(selected = selectedTab == 2, onClick = { selectedTab = 2 }, text = { Text("Restaurant", fontWeight = FontWeight.SemiBold) })
                 Tab(selected = selectedTab == 3, onClick = { selectedTab = 3 }, text = { Text("Events", fontWeight = FontWeight.SemiBold) })
+                Tab(selected = selectedTab == 4, onClick = { selectedTab = 4 }, text = { Text("Store Analytics", fontWeight = FontWeight.SemiBold) })
             }
 
-            // Summary Cards
-            Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MetricCard(title = "Total (Inc. GST)", amount = "₹${totalSale}", modifier = Modifier.weight(1f), isPrimary = true)
-                MetricCard(title = "Total (Ex. GST)", amount = "₹${totalWithoutGst}", modifier = Modifier.weight(1f), isPrimary = false)
-            }
-            
-            Text(
-                "Transaction Breakdown", 
-                fontWeight = FontWeight.Bold, 
-                fontSize = 18.sp, 
-                color = RoyalBlue,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
+            if (selectedTab == 4) {
+                // Store Analytics View
+                Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                    Text("Store Financial Overview", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = RoyalBlue)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        MetricCard(title = "Total Purchases", amount = "₹${totalPurchases}", modifier = Modifier.weight(1f), isPrimary = true)
+                        MetricCard(title = "Total Expenses", amount = "₹${totalExpenses}", modifier = Modifier.weight(1f), isPrimary = false)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    MetricCard(title = "Remaining Stock Value", amount = "₹${totalStockValue}", modifier = Modifier.fillMaxWidth(), isPrimary = true)
+                }
+            } else {
+                // Revenue View
+                Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MetricCard(title = "Total (Inc. GST)", amount = "₹${totalSale}", modifier = Modifier.weight(1f), isPrimary = true)
+                    MetricCard(title = "Total (Ex. GST)", amount = "₹${totalWithoutGst}", modifier = Modifier.weight(1f), isPrimary = false)
+                }
+                
+                Text(
+                    "Transaction Breakdown", 
+                    fontWeight = FontWeight.Bold, 
+                    fontSize = 18.sp, 
+                    color = RoyalBlue,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(bottom = 16.dp)
-            ) {
-                items(filteredEntries) { entry ->
-                    RevenueEntryCard(entry)
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp)
+                ) {
+                    items(filteredEntries) { entry ->
+                        RevenueEntryCard(entry)
+                    }
                 }
             }
         }

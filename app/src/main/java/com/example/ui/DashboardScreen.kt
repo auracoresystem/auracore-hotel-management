@@ -811,7 +811,7 @@ fun DashboardScreen(
                         if (isCoreTeam) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 StatCard(modifier = Modifier.weight(1f), title = "Occupancy", value = data.occupancy, subtitle = "Live", icon = Icons.Default.Bed, iconColor = RoyalBlue)
-                                StatCard(modifier = Modifier.weight(1f), title = "Revenue", value = data.revenue, subtitle = "Today", icon = Icons.Default.Payments, iconColor = Gold)
+                                StatCard(modifier = Modifier.weight(1f), title = "Financials", value = data.revenue, subtitle = "Today", icon = Icons.Default.Payments, iconColor = Gold)
                             }
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 StatCard(modifier = Modifier.weight(1f), title = "Attendance", value = data.attendance, subtitle = "Staff", icon = Icons.Default.Groups, iconColor = Color(0xFF16A34A))
@@ -895,7 +895,7 @@ fun DashboardScreen(
                                         DashboardModuleItem("Security", Icons.Default.Lock, onNavigateToSecurity),
                                         DashboardModuleItem("Core Team Hub", Icons.Default.Groups, onNavigateToHub),
                                         DashboardModuleItem("Laundry", Icons.Default.Done, onNavigateToLaundry),
-                                        DashboardModuleItem("Revenue", Icons.Default.AttachMoney, onNavigateToRevenue)
+                                        DashboardModuleItem("Financials", Icons.Default.Analytics, onNavigateToRevenue)
                                     )
                                     userRole == "Housekeeping" -> listOf(
                                         DashboardModuleItem("My Tasks", Icons.Default.Assignment, onNavigateToAttendance),

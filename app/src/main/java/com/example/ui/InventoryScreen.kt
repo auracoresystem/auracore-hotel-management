@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalMall
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.MoneyOff
@@ -94,6 +95,28 @@ fun InventoryScreen(
         ) {
             if (isLoading) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = RoyalBlue)
+            }
+
+            if (userRole != "Kitchen Staff") {
+                val totalStockValue = items.sumOf { it.currentStock * it.unitPrice }
+                val totalPurchases = purchases.sumOf { it.totalAmount }
+                val totalExpenses = expenses.sumOf { it.amount }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Store Dashboard Overview", fontWeight = FontWeight.Bold, color = RoyalBlue, fontSize = 16.sp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            StoreMetricItem(title = "Stock Value", value = "₹${totalStockValue}", icon = Icons.Default.Inventory2, color = Color(0xFF4CAF50))
+                            StoreMetricItem(title = "Total Purchases", value = "₹${totalPurchases}", icon = Icons.Default.ShoppingCart, color = RoyalBlue)
+                            StoreMetricItem(title = "Total Expenses", value = "₹${totalExpenses}", icon = Icons.Default.MoneyOff, color = Color(0xFFF44336))
+                        }
+                    }
+                }
             }
 
             // Tabs for Stock & Kitchen Requests
@@ -358,7 +381,8 @@ fun InventoryCard(item: InventoryItem, onClick: () -> Unit) {
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(item.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                    Text("${item.currentStock} ${item.unit} • ${item.category}", fontSize = 13.sp, color = Color(0xFF64748B))
+                    Text("${item.currentStock} ${item.unit} @ ₹${item.unitPrice}/${item.unit} • ${item.category}", fontSize = 13.sp, color = Color(0xFF64748B))
+                    Text("Total Value: ₹${item.currentStock * item.unitPrice}", fontSize = 12.sp, color = RoyalBlue, fontWeight = FontWeight.SemiBold)
                 }
             }
             Surface(
@@ -545,6 +569,7 @@ fun AddItemDialog(
     var unit by remember { mutableStateOf("") }
     var initialStock by remember { mutableStateOf("") }
     var lowThreshold by remember { mutableStateOf("") }
+    var unitPrice by remember { mutableStateOf("") }
     var barcode by remember { mutableStateOf("") }
 
     AlertDialog(
@@ -556,6 +581,7 @@ fun AddItemDialog(
                 OutlinedTextField(value = category, onValueChange = { category = it }, label = { Text("Category") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = unit, onValueChange = { unit = it }, label = { Text("Unit (kg, Ltr, Pcs, Bag)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = initialStock, onValueChange = { initialStock = it }, label = { Text("Initial Stock") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = unitPrice, onValueChange = { unitPrice = it }, label = { Text("Unit Price (₹)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = lowThreshold, onValueChange = { lowThreshold = it }, label = { Text("Low Stock Threshold") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = barcode, onValueChange = { barcode = it }, label = { Text("Barcode / QR") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
@@ -564,7 +590,8 @@ fun AddItemDialog(
             Button(onClick = { 
                 val stock = initialStock.toDoubleOrNull() ?: 0.0
                 val threshold = lowThreshold.toDoubleOrNull() ?: 0.0
-                onAdd(InventoryItem(name = name, category = category, unit = unit, currentStock = stock, lowStockThreshold = threshold, barcode = barcode)) 
+                val price = unitPrice.toDoubleOrNull() ?: 0.0
+                onAdd(InventoryItem(name = name, category = category, unit = unit, currentStock = stock, lowStockThreshold = threshold, unitPrice = price, barcode = barcode)) 
             }, colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue)) { Text("Add Item") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
@@ -752,4 +779,14 @@ fun AddExpenseDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
+}
+
+@Composable
+fun StoreMetricItem(title: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(4.dp)) {
+        Icon(icon, contentDescription = title, tint = color, modifier = Modifier.size(24.dp))
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(value, fontWeight = FontWeight.Bold, color = color, fontSize = 14.sp)
+        Text(title, color = Color.Gray, fontSize = 10.sp, maxLines = 1)
+    }
 }

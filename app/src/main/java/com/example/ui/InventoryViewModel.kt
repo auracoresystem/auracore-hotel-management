@@ -17,6 +17,7 @@ data class InventoryItem(
     val unit: String = "",
     val currentStock: Double = 0.0,
     val lowStockThreshold: Double = 0.0,
+    val unitPrice: Double = 0.0,
     val supplier: String = "",
     val purchaseDate: Long = 0L,
     val expiryDate: Long = 0L,
@@ -93,117 +94,101 @@ class InventoryViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val localItems = mutableListOf(
-        InventoryItem(id = "item_1", name = "Basmati Rice", category = "Grains", unit = "kg", currentStock = 150.0, lowStockThreshold = 50.0, barcode = "11223344"),
-        InventoryItem(id = "item_2", name = "Cooking Oil", category = "Liquids", unit = "Ltr", currentStock = 8.0, lowStockThreshold = 15.0, barcode = "22334455", status = "Low Stock"),
-        InventoryItem(id = "item_3", name = "Salt", category = "Spices", unit = "kg", currentStock = 12.0, lowStockThreshold = 5.0, barcode = "33445566"),
-        InventoryItem(id = "item_4", name = "Tea Bags", category = "Beverages", unit = "Pcs", currentStock = 0.0, lowStockThreshold = 100.0, barcode = "44556677", status = "Out of Stock")
-    )
-
-    private val localTransactions = mutableListOf(
-        InventoryTransaction(id = "trans_1", itemId = "item_1", type = "Stock In", quantity = 100.0, date = System.currentTimeMillis() - 86400000, remarks = "Bulk Purchase"),
-        InventoryTransaction(id = "trans_2", itemId = "item_2", type = "Stock Out", quantity = 2.0, date = System.currentTimeMillis() - 43200000, remarks = "Issued to Kitchen")
-    )
-
-    private val localRequirements = mutableListOf(
-        KitchenRequirement(
-            id = "req_1",
-            itemName = "Basmati Rice",
-            quantity = 25.0,
-            unit = "kg",
-            status = "Pending Chef Approval",
-            requestedBy = "Chef Amit",
-            date = System.currentTimeMillis() - 3600000,
-            itemId = "item_1"
-        ),
-        KitchenRequirement(
-            id = "req_2",
-            itemName = "Cooking Oil",
-            quantity = 10.0,
-            unit = "Ltr",
-            status = "Passed (Chef Approved)",
-            requestedBy = "Chef Amit",
-            date = System.currentTimeMillis() - 7200000,
-            itemId = "item_2"
-        )
-    )
-
-    private val localVendors = mutableListOf(
-        Vendor("v1", "Fresh Farms", "9876543210", "Vegetables"),
-        Vendor("v2", "City Meats", "9876543211", "Meat")
-    )
-
-    private val localPurchases = mutableListOf(
-        StorePurchase("p1", "Fresh Farms", "Onion", 50.0, "kg", 20.0, 1000.0, System.currentTimeMillis() - 86400000)
-    )
-
-    private val localExpenses = mutableListOf(
-        StoreExpense("e1", "Transport for Vegetables", 150.0, System.currentTimeMillis() - 86400000, "Transport")
-    )
-
     init {
         loadItems()
         loadTransactions()
         loadRequirements()
-        _vendors.value = localVendors.toList()
-        _purchases.value = localPurchases.toList()
-        _expenses.value = localExpenses.toList()
+        loadVendors()
+        loadPurchases()
+        loadExpenses()
     }
 
     private fun loadRequirements() {
-        _requirements.value = localRequirements.toList()
         val db = firestore
         if (db == null) return
         try {
             db.collection("kitchen_requirements")
                 .orderBy("date", com.google.firebase.firestore.Query.Direction.DESCENDING)
                 .addSnapshotListener { snapshot, _ ->
-                    if (snapshot != null && !snapshot.isEmpty) {
+                    if (snapshot != null) {
                         _requirements.value = snapshot.toObjects(KitchenRequirement::class.java)
-                    } else {
-                        _requirements.value = localRequirements.toList()
                     }
                 }
         } catch (e: Exception) {
-            _requirements.value = localRequirements.toList()
+            // Log or ignore
         }
     }
 
     private fun loadItems() {
-        _items.value = localItems.toList()
         val db = firestore
         if (db == null) return
         try {
             db.collection("inventory_items")
                 .addSnapshotListener { snapshot, _ ->
-                    if (snapshot != null && !snapshot.isEmpty) {
-                        val itemsList = snapshot.toObjects(InventoryItem::class.java)
-                        _items.value = itemsList
-                    } else {
-                        _items.value = localItems.toList()
+                    if (snapshot != null) {
+                        _items.value = snapshot.toObjects(InventoryItem::class.java)
                     }
                 }
         } catch (e: Exception) {
-            _items.value = localItems.toList()
         }
     }
     
     private fun loadTransactions() {
-        _transactions.value = localTransactions.toList()
         val db = firestore
         if (db == null) return
         try {
             db.collection("inventory_transactions")
                 .orderBy("date", com.google.firebase.firestore.Query.Direction.DESCENDING)
                 .addSnapshotListener { snapshot, _ ->
-                    if (snapshot != null && !snapshot.isEmpty) {
+                    if (snapshot != null) {
                         _transactions.value = snapshot.toObjects(InventoryTransaction::class.java)
-                    } else {
-                        _transactions.value = localTransactions.toList()
                     }
                 }
         } catch (e: Exception) {
-            _transactions.value = localTransactions.toList()
+        }
+    }
+
+    private fun loadVendors() {
+        val db = firestore
+        if (db == null) return
+        try {
+            db.collection("vendors")
+                .addSnapshotListener { snapshot, _ ->
+                    if (snapshot != null) {
+                        _vendors.value = snapshot.toObjects(Vendor::class.java)
+                    }
+                }
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun loadPurchases() {
+        val db = firestore
+        if (db == null) return
+        try {
+            db.collection("store_purchases")
+                .orderBy("date", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshot, _ ->
+                    if (snapshot != null) {
+                        _purchases.value = snapshot.toObjects(StorePurchase::class.java)
+                    }
+                }
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun loadExpenses() {
+        val db = firestore
+        if (db == null) return
+        try {
+            db.collection("store_expenses")
+                .orderBy("date", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshot, _ ->
+                    if (snapshot != null) {
+                        _expenses.value = snapshot.toObjects(StoreExpense::class.java)
+                    }
+                }
+        } catch (e: Exception) {
         }
     }
 
@@ -230,21 +215,6 @@ class InventoryViewModel : ViewModel() {
                             remarks = "Initial Stock"
                         )
                         db.collection("inventory_transactions").document(trans.id).set(trans).await()
-                    }
-                } else {
-                    localItems.add(newItem)
-                    _items.value = localItems.toList()
-                    if (newItem.currentStock > 0) {
-                        val trans = InventoryTransaction(
-                            id = "trans_${System.currentTimeMillis()}",
-                            itemId = newItem.id,
-                            type = "Stock In",
-                            quantity = newItem.currentStock,
-                            date = System.currentTimeMillis(),
-                            remarks = "Initial Stock"
-                        )
-                        localTransactions.add(0, trans)
-                        _transactions.value = localTransactions.toList()
                     }
                 }
                 
@@ -292,30 +262,6 @@ class InventoryViewModel : ViewModel() {
                          ToastManager.showToast("Stock updated: ${type}! 📈")
                          onSuccess()
                     }
-                } else {
-                    val itemIndex = localItems.indexOfFirst { it.id == itemId }
-                    if (itemIndex != -1) {
-                        val item = localItems[itemIndex]
-                        val newStock = if (type == "Stock In") item.currentStock + quantity else item.currentStock - quantity
-                        val newStatus = if (newStock <= 0) "Out of Stock" else if (newStock <= item.lowStockThreshold) "Low Stock" else "In Stock"
-                        
-                        localItems[itemIndex] = item.copy(currentStock = newStock, status = newStatus)
-                        _items.value = localItems.toList()
-                        
-                        val trans = InventoryTransaction(
-                             id = "trans_${System.currentTimeMillis()}",
-                             itemId = itemId,
-                             type = type,
-                             quantity = quantity,
-                             date = System.currentTimeMillis(),
-                             remarks = remarks
-                        )
-                        localTransactions.add(0, trans)
-                        _transactions.value = localTransactions.toList()
-                        
-                        ToastManager.showToast("Stock updated: ${type}! 📈")
-                        onSuccess()
-                    }
                 }
             } catch (e: Exception) {
                 // handle error
@@ -347,12 +293,7 @@ class InventoryViewModel : ViewModel() {
                     try {
                         db.collection("kitchen_requirements").document(newId).set(req).await()
                     } catch (e: Exception) {
-                        localRequirements.add(0, req)
-                        _requirements.value = localRequirements.toList()
                     }
-                } else {
-                    localRequirements.add(0, req)
-                    _requirements.value = localRequirements.toList()
                 }
                 ToastManager.showToast("Requirement Submitted for Chef Approval! 🧑‍🍳")
             } catch (e: Exception) {
@@ -373,17 +314,6 @@ class InventoryViewModel : ViewModel() {
                         db.collection("kitchen_requirements").document(id)
                             .update("status", "Passed (Chef Approved)").await()
                     } catch (e: Exception) {
-                        val index = localRequirements.indexOfFirst { it.id == id }
-                        if (index != -1) {
-                            localRequirements[index] = localRequirements[index].copy(status = "Passed (Chef Approved)")
-                            _requirements.value = localRequirements.toList()
-                        }
-                    }
-                } else {
-                    val index = localRequirements.indexOfFirst { it.id == id }
-                    if (index != -1) {
-                        localRequirements[index] = localRequirements[index].copy(status = "Passed (Chef Approved)")
-                        _requirements.value = localRequirements.toList()
                     }
                 }
                 ToastManager.showToast("Requirement Passed & Approved by Chef! ✅")
@@ -405,17 +335,6 @@ class InventoryViewModel : ViewModel() {
                         db.collection("kitchen_requirements").document(id)
                             .update("status", "Rejected").await()
                     } catch (e: Exception) {
-                        val index = localRequirements.indexOfFirst { it.id == id }
-                        if (index != -1) {
-                            localRequirements[index] = localRequirements[index].copy(status = "Rejected")
-                            _requirements.value = localRequirements.toList()
-                        }
-                    }
-                } else {
-                    val index = localRequirements.indexOfFirst { it.id == id }
-                    if (index != -1) {
-                        localRequirements[index] = localRequirements[index].copy(status = "Rejected")
-                        _requirements.value = localRequirements.toList()
                     }
                 }
                 ToastManager.showToast("Requirement Rejected! ❌")
@@ -438,10 +357,7 @@ class InventoryViewModel : ViewModel() {
                         val reqSnap = db.collection("kitchen_requirements").document(id).get().await()
                         req = reqSnap.toObject(KitchenRequirement::class.java)
                     } catch (e: Exception) {
-                        req = localRequirements.firstOrNull { it.id == id }
                     }
-                } else {
-                    req = localRequirements.firstOrNull { it.id == id }
                 }
 
                 if (req != null) {
@@ -475,30 +391,7 @@ class InventoryViewModel : ViewModel() {
                                  )
                                  db.collection("inventory_transactions").document(trans.id).set(trans).await()
                             } catch (e: Exception) {
-                                val itemIndex = _items.value.indexOfFirst { it.id == matchedItem.id }
-                                if (itemIndex != -1) {
-                                    val updatedList = _items.value.toMutableList()
-                                    updatedList[itemIndex] = matchedItem.copy(currentStock = newStock, status = newStatus)
-                                    _items.value = updatedList
-                                }
                             }
-                        } else {
-                            val itemIndex = localItems.indexOfFirst { it.id == matchedItem.id }
-                            if (itemIndex != -1) {
-                                localItems[itemIndex] = matchedItem.copy(currentStock = newStock, status = newStatus)
-                                _items.value = localItems.toList()
-                            }
-                            
-                            val trans = InventoryTransaction(
-                                 id = "trans_${System.currentTimeMillis()}",
-                                 itemId = matchedItem.id,
-                                 type = "Stock Out",
-                                 quantity = qtyToDeduct,
-                                 date = System.currentTimeMillis(),
-                                 remarks = "Issued to Kitchen (Req: ${req.id})"
-                             )
-                             localTransactions.add(0, trans)
-                             _transactions.value = localTransactions.toList()
                         }
                     }
 
@@ -507,17 +400,6 @@ class InventoryViewModel : ViewModel() {
                             db.collection("kitchen_requirements").document(id)
                                 .update("status", "Issued").await()
                         } catch (e: Exception) {
-                            val index = localRequirements.indexOfFirst { it.id == id }
-                            if (index != -1) {
-                                localRequirements[index] = localRequirements[index].copy(status = "Issued")
-                                _requirements.value = localRequirements.toList()
-                            }
-                        }
-                    } else {
-                        val index = localRequirements.indexOfFirst { it.id == id }
-                        if (index != -1) {
-                            localRequirements[index] = localRequirements[index].copy(status = "Issued")
-                            _requirements.value = localRequirements.toList()
                         }
                     }
 
@@ -532,39 +414,54 @@ class InventoryViewModel : ViewModel() {
     }
     
     fun addVendor(name: String, contact: String, category: String) {
-        val newVendor = Vendor(id = "v_${System.currentTimeMillis()}", name = name, contact = contact, category = category)
-        localVendors.add(newVendor)
-        _vendors.value = localVendors.toList()
-        ToastManager.showToast("Vendor Added! ✅")
+        viewModelScope.launch {
+            val db = firestore ?: return@launch
+            val newVendor = Vendor(id = db.collection("vendors").document().id, name = name, contact = contact, category = category)
+            try {
+                db.collection("vendors").document(newVendor.id).set(newVendor).await()
+                ToastManager.showToast("Vendor Added! ✅")
+            } catch(e: Exception) {
+            }
+        }
     }
 
     fun addPurchase(vendorName: String, itemName: String, quantity: Double, unit: String, rate: Double) {
-        val total = quantity * rate
-        val newPurchase = StorePurchase(
-            id = "p_${System.currentTimeMillis()}",
-            vendorName = vendorName,
-            itemName = itemName,
-            quantity = quantity,
-            unit = unit,
-            rate = rate,
-            totalAmount = total,
-            date = System.currentTimeMillis()
-        )
-        localPurchases.add(newPurchase)
-        _purchases.value = localPurchases.toList()
-        ToastManager.showToast("Purchase Recorded! ✅")
+        viewModelScope.launch {
+            val db = firestore ?: return@launch
+            val total = quantity * rate
+            val newPurchase = StorePurchase(
+                id = db.collection("store_purchases").document().id,
+                vendorName = vendorName,
+                itemName = itemName,
+                quantity = quantity,
+                unit = unit,
+                rate = rate,
+                totalAmount = total,
+                date = System.currentTimeMillis()
+            )
+            try {
+                db.collection("store_purchases").document(newPurchase.id).set(newPurchase).await()
+                ToastManager.showToast("Purchase Recorded! ✅")
+            } catch (e: Exception) {
+            }
+        }
     }
 
     fun addExpense(description: String, amount: Double, category: String) {
-        val newExpense = StoreExpense(
-            id = "e_${System.currentTimeMillis()}",
-            description = description,
-            amount = amount,
-            category = category,
-            date = System.currentTimeMillis()
-        )
-        localExpenses.add(newExpense)
-        _expenses.value = localExpenses.toList()
-        ToastManager.showToast("Expense Recorded! ✅")
+        viewModelScope.launch {
+            val db = firestore ?: return@launch
+            val newExpense = StoreExpense(
+                id = db.collection("store_expenses").document().id,
+                description = description,
+                amount = amount,
+                category = category,
+                date = System.currentTimeMillis()
+            )
+            try {
+                db.collection("store_expenses").document(newExpense.id).set(newExpense).await()
+                ToastManager.showToast("Expense Recorded! ✅")
+            } catch (e: Exception) {
+            }
+        }
     }
 }
