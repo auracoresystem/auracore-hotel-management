@@ -43,6 +43,7 @@ fun InventoryScreen(
     authViewModel: AuthViewModel,
     onBackClick: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val items by viewModel.items.collectAsStateWithLifecycle()
     val requirements by viewModel.requirements.collectAsStateWithLifecycle()
     val vendors by viewModel.vendors.collectAsStateWithLifecycle()
@@ -140,6 +141,17 @@ fun InventoryScreen(
                         onClick = { selectedTab = 0 },
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Purchases", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    )
+                    Tab(
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.LocalMall, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Stock", fontWeight = FontWeight.SemiBold)
@@ -147,8 +159,8 @@ fun InventoryScreen(
                         }
                     )
                     Tab(
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
+                        selected = selectedTab == 2,
+                        onClick = { selectedTab = 2 },
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.ShoppingCart, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -165,24 +177,13 @@ fun InventoryScreen(
                         }
                     )
                     Tab(
-                        selected = selectedTab == 2,
-                        onClick = { selectedTab = 2 },
+                        selected = selectedTab == 3,
+                        onClick = { selectedTab = 3 },
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.People, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Vendors", fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    )
-                    Tab(
-                        selected = selectedTab == 3,
-                        onClick = { selectedTab = 3 },
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Purchases", fontWeight = FontWeight.SemiBold)
                             }
                         }
                     )
@@ -202,6 +203,20 @@ fun InventoryScreen(
 
             when (selectedTab) {
                 0 -> {
+                    // Purchases List
+                    if (purchases.isEmpty()) {
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text("No purchases found.", color = Color.Gray)
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(purchases) { purchase ->
+                                PurchaseCard(purchase)
+                            }
+                        }
+                    }
+                }
+                1 -> {
                     // Stock list
                     if (items.isEmpty() && !isLoading) {
                         Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -222,7 +237,7 @@ fun InventoryScreen(
                         }
                     }
                 }
-                1 -> {
+                2 -> {
                     // Kitchen Requisitions list
                     if (requirements.isEmpty()) {
                         Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -247,7 +262,7 @@ fun InventoryScreen(
                         }
                     }
                 }
-                2 -> {
+                3 -> {
                     // Vendors List
                     if (vendors.isEmpty()) {
                         Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -257,20 +272,6 @@ fun InventoryScreen(
                         LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(vendors) { vendor ->
                                 VendorCard(vendor)
-                            }
-                        }
-                    }
-                }
-                3 -> {
-                    // Purchases List
-                    if (purchases.isEmpty()) {
-                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            Text("No purchases found.", color = Color.Gray)
-                        }
-                    } else {
-                        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(purchases) { purchase ->
-                                PurchaseCard(purchase)
                             }
                         }
                     }
@@ -297,7 +298,10 @@ fun InventoryScreen(
         AddItemDialog(
             onDismiss = { showAddItemDialog = false },
             onAdd = { item ->
-                viewModel.addItem(item, onSuccess = { showAddItemDialog = false })
+                viewModel.addItem(item, onSuccess = { 
+                    com.example.util.SoundUtils.playSuccessSound(context)
+                    showAddItemDialog = false 
+                })
             }
         )
     }
@@ -318,7 +322,10 @@ fun InventoryScreen(
             item = selectedItem!!,
             onDismiss = { showTransactionDialog = false },
             onSubmit = { type, qty, remarks ->
-                viewModel.addTransaction(selectedItem!!.id, type, qty, remarks, onSuccess = { showTransactionDialog = false })
+                viewModel.addTransaction(selectedItem!!.id, type, qty, remarks, onSuccess = { 
+                    com.example.util.SoundUtils.playSuccessSound(context)
+                    showTransactionDialog = false 
+                })
             }
         )
     }

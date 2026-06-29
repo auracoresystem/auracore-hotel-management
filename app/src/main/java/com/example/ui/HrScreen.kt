@@ -545,7 +545,10 @@ fun HrScreen(
             confirmButton = {
                 TextButton(onClick = {
                     if (empId.isNotBlank()) {
-                        viewModel.checkIn(empId, onSuccess = { showCheckInDialog = false })
+                        viewModel.checkIn(empId, onSuccess = { 
+                            com.example.util.SoundUtils.playSuccessSound(context)
+                            showCheckInDialog = false 
+                        })
                     }
                 }) { Text("Check In") }
             },
@@ -570,7 +573,10 @@ fun HrScreen(
             confirmButton = {
                 TextButton(onClick = {
                     if (empId.isNotBlank() && reason.isNotBlank()) {
-                        viewModel.requestLeave(empId, name, reason, onSuccess = { showLeaveDialog = false })
+                        viewModel.requestLeave(empId, name, reason, onSuccess = { 
+                            com.example.util.SoundUtils.playSuccessSound(context)
+                            showLeaveDialog = false 
+                        })
                     }
                 }) { Text("Submit") }
             },

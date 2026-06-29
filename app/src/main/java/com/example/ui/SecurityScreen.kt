@@ -22,6 +22,7 @@ fun SecurityScreen(
     viewModel: SecurityViewModel,
     onBackClick: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val visitors by viewModel.visitors.collectAsStateWithLifecycle()
     val incidents by viewModel.incidents.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -104,7 +105,10 @@ fun SecurityScreen(
             confirmButton = {
                 TextButton(onClick = {
                     if (name.isNotBlank()) {
-                        viewModel.addVisitor(name, purpose, vehicle, null, onSuccess = { showVisitorDialog = false })
+                        viewModel.addVisitor(name, purpose, vehicle, null, onSuccess = { 
+                            com.example.util.SoundUtils.playSuccessSound(context)
+                            showVisitorDialog = false 
+                        })
                     }
                 }) { Text("Entry") }
             },
@@ -130,7 +134,10 @@ fun SecurityScreen(
             confirmButton = {
                 TextButton(onClick = {
                     if (title.isNotBlank()) {
-                        viewModel.reportIncident(title, desc, type, onSuccess = { showIncidentDialog = false })
+                        viewModel.reportIncident(title, desc, type, onSuccess = { 
+                            com.example.util.SoundUtils.playSuccessSound(context)
+                            showIncidentDialog = false 
+                        })
                     }
                 }) { Text("Report") }
             },

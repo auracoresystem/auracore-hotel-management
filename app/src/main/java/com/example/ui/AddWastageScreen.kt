@@ -37,6 +37,7 @@ fun AddWastageScreen(
     onBackClick: () -> Unit,
     onSaveSuccess: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var itemName by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
     var quantity by remember { mutableStateOf("") }
@@ -188,7 +189,10 @@ fun AddWastageScreen(
                             reason = reason,
                             remarks = remarks,
                             photoUriString = photoUri.toString(),
-                            onSuccess = { onSaveSuccess() },
+                            onSuccess = { 
+                                com.example.util.SoundUtils.playSuccessSound(context)
+                                onSaveSuccess() 
+                            },
                             onError = { showError = true }
                         )
                     } else {
